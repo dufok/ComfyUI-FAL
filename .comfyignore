@@ -1,0 +1,5 @@
+# Files excluded from the published registry package (gitignore syntax).
+fal_catalog.json
+fal_schemas/
+tests/
+.github/
