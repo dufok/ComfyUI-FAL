@@ -1,0 +1,17 @@
+[project]
+name = "comfyui-fal"
+description = "FAL nodes ComfyUI doesn't have yet: image→3D (Tripo/Hunyuan3D/Trellis, no GPU) + Bria background, plus a model-catalog registry and new-model checker. Coexists with gokayfem/ComfyUI-fal-API."
+version = "0.1.0"
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["fal-client"]
+
+[project.urls]
+Repository = "https://github.com/dufok/ComfyUI-FAL"
+
+[tool.comfy]
+# PublisherId must match your Comfy Registry publisher account (https://registry.comfy.org).
+PublisherId = "dufok"
+DisplayName = "ComfyUI-FAL"
+Icon = ""
