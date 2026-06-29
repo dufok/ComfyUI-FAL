@@ -148,7 +148,12 @@ def _run(endpoint, arguments, prefix, want_preview=True):
     info = f"{endpoint} -> {os.path.basename(dest)} ({size_mb:.2f} MB)"
     print(f"[FAL-3D] DONE {info}")
     print(f"[FAL-3D] DOWNLOAD .glb: {download_url}")
-    return (dest, download_url, preview, info)
+    # OUTPUT_NODE: surface the link as UI text under the node, while the
+    # downstream sockets still read from "result".
+    return {
+        "ui": {"text": [f"{info}\n⬇ {download_url}"]},
+        "result": (dest, download_url, preview, info),
+    }
 
 
 _RET_TYPES = ("STRING", "STRING", "IMAGE", "STRING")
