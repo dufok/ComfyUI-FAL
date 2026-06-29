@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .DS_Store
 *.glb
+fal_catalog.json
+fal_schemas/
