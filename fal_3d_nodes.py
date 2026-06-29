@@ -145,15 +145,14 @@ def _run(endpoint, arguments, prefix, want_preview=True):
         thumb = rendered.get("url") if isinstance(rendered, dict) else None
         if thumb:
             preview = _url_to_image_tensor(thumb)
-    info = f"{endpoint} -> {os.path.basename(dest)} ({size_mb:.2f} MB)"
-    print(f"[FAL-3D] DONE {info}")
+    # Put the clickable link into `info` itself so it's visible without any
+    # frontend JS widget — the link travels on the info/download_url sockets
+    # and the console line below. (A ui.text return needs a companion JS
+    # widget or the ComfyUI frontend throws.)
+    info = f"{endpoint} -> {os.path.basename(dest)} ({size_mb:.2f} MB)  ⬇ {download_url}"
+    print(f"[FAL-3D] DONE {endpoint} -> {os.path.basename(dest)} ({size_mb:.2f} MB)")
     print(f"[FAL-3D] DOWNLOAD .glb: {download_url}")
-    # OUTPUT_NODE: surface the link as UI text under the node, while the
-    # downstream sockets still read from "result".
-    return {
-        "ui": {"text": [f"{info}\n⬇ {download_url}"]},
-        "result": (dest, download_url, preview, info),
-    }
+    return (dest, download_url, preview, info)
 
 
 _RET_TYPES = ("STRING", "STRING", "IMAGE", "STRING")
