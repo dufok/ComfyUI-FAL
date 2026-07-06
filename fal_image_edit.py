@@ -195,7 +195,8 @@ class FalZImageTurboInpaint:
 
 
 class FalQwenImageEditInpaint:
-    """fal-ai/qwen-image-edit/inpaint — Qwen's edit model constrained to a mask."""
+    """fal-ai/qwen-image-edit/inpaint — Qwen Image Edit v1 (the original Aug-2025 model)
+    constrained to a mask. The newer 2511 has no mask endpoint on FAL."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -563,15 +564,15 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FalObjectRemoval": "FAL Remove — Object Removal (prompt/mask, $0.006+)",
     "FalBriaEraser": "FAL Remove — Bria Eraser (mask, $0.04)",
-    "FalFluxProErase": "FAL Remove — Flux Pro Erase (mask, ~$0.03/MP)",
+    "FalFluxProErase": "FAL Remove — Flux Pro v1 Erase (mask, ~$0.03/MP)",
     "FalFinegrainEraser": "FAL Remove — Finegrain Eraser (prompt+shadows, $0.18+)",
     "FalZImageTurboInpaint": "FAL Inpaint — Z-Image Turbo ($0.01/MP)",
-    "FalQwenImageEditInpaint": "FAL Inpaint — Qwen Image Edit",
+    "FalQwenImageEditInpaint": "FAL Inpaint — Qwen Image Edit v1 (mask, 2511 has none)",
     "FalBriaGenFill": "FAL Inpaint — Bria GenFill v2 ($0.04/MP)",
-    "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511 ($0.03/MP)",
+    "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511, newest ($0.03/MP)",
     "FalSeedreamEdit": "FAL Edit — Seedream v4.5 / v5-lite ($0.04)",
-    "FalSeedVRUpscale": "FAL Upscale — SeedVR2",
-    "FalTopazUpscale": "FAL Upscale — Topaz",
+    "FalSeedVRUpscale": "FAL Upscale — SeedVR v2",
+    "FalTopazUpscale": "FAL Upscale — Topaz (model in dropdown)",
     "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp",
     "FalClarityUpscaler": "FAL Upscale — Clarity (creative)",
     "FalBriaExpand": "FAL Expand — Bria Outpaint",

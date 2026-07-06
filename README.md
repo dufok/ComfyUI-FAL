@@ -51,14 +51,14 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 |---|---|---|---|
 | FAL Remove — Object Removal | `fal-ai/object-removal[/mask]` | prompt **or** mask | $0.006–0.024 |
 | FAL Remove — Bria Eraser | `fal-ai/bria/eraser` | mask | $0.04 |
-| FAL Remove — Flux Pro Erase | `fal-ai/flux-pro/v1/erase` | mask | ~$0.03/MP |
+| FAL Remove — Flux Pro v1 Erase | `fal-ai/flux-pro/v1/erase` | mask | ~$0.03/MP |
 | FAL Remove — Finegrain Eraser | `fal-ai/finegrain-eraser` | prompt (kills shadows/reflections) | $0.18–0.36 |
 | FAL Inpaint — Z-Image Turbo | `fal-ai/z-image/turbo/inpaint` | mask + prompt | $0.01/MP |
-| FAL Inpaint — Qwen Image Edit | `fal-ai/qwen-image-edit/inpaint` | mask + prompt | ~$0.03/MP |
+| FAL Inpaint — Qwen Image Edit v1 | `fal-ai/qwen-image-edit/inpaint` | mask + prompt (2511 has no mask endpoint) | ~$0.03/MP |
 | FAL Inpaint — Bria GenFill v2 | `bria/genfill/v2` | mask + instruction | $0.04/MP |
-| FAL Edit — Qwen Image Edit 2511 | `fal-ai/qwen-image-edit-2511` | prompt, multi-ref | $0.03/MP |
+| FAL Edit — Qwen Image Edit 2511 (newest) | `fal-ai/qwen-image-edit-2511` | prompt, multi-ref | $0.03/MP |
 | FAL Edit — Seedream v4.5 / v5-lite | `fal-ai/bytedance/seedream/...` | prompt, up to 10 refs | $0.04 |
-| FAL Upscale — SeedVR2 | `fal-ai/seedvr/upscale/image` | factor or target res | varies |
+| FAL Upscale — SeedVR v2 | `fal-ai/seedvr/upscale/image` | factor or target res | varies |
 | FAL Upscale — Topaz | `fal-ai/topaz/upscale/image` | 11 models, face enhance | varies |
 | FAL Upscale — Recraft Crisp | `fal-ai/recraft/upscale/crisp` | image only | cheap |
 | FAL Upscale — Clarity | `fal-ai/clarity-upscaler` | creativity/resemblance | varies |
