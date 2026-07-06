@@ -258,8 +258,9 @@ def run_mesh(endpoint, arguments, prefix, want_preview=True):
     fname, download_url, size_mb = save_file(url, prefix)
     preview = blank_image()
     if want_preview:
-        rendered = deep_find(result, "rendered_image")
-        thumb = rendered.get("url") if isinstance(rendered, dict) else None
+        rendered = deep_find(result, "rendered_image") or deep_find(result, "thumbnail")
+        thumb = rendered.get("url") if isinstance(rendered, dict) else (
+            rendered if isinstance(rendered, str) else None)
         if thumb:
             preview = url_to_image_tensor(thumb)
     info = f"{endpoint} -> {fname} ({size_mb:.2f} MB)  ⬇ {download_url}"

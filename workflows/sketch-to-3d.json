@@ -30,7 +30,7 @@
       "inputs": [],
       "outputs": [],
       "properties": {},
-      "widgets_values": ["СКЕТЧ → ОБЪЁМ → 3D (~$0.10 за прогон)\n\n1. Загрузи скетч в LoadImage.\n2. Qwen Edit 2511 ($0.03/MP) превращает скетч в объёмный рендер — правь prompt под свой объект (что за предмет, материал).\n3. Bria Remove ($0.018) вырезает объект — чистый фон сильно улучшает 3D.\n4. Tripo v2.5 ($0.05) делает .glb: файл падает в output/, ссылка на скачивание — выход info (и в консоли).\n5. Preview3D — интерактивный вьювер: вращение/зум мышкой прямо в графе.\n\nФинальное качество: замени Tripo на FAL 3D — Hunyuan3D v2 (текстурный ~$0.48) или TRELLIS — вход тот же IMAGE, glb_file так же втыкается в Preview3D.\nЕсли скетч совсем сырой и Qwen буксует — попробуй Nano Banana Pro Edit из пака gokayfem тем же промптом."],
+      "widgets_values": ["СКЕТЧ → ОБЪЁМ → 3D (~$0.55 за прогон)\n\n1. Загрузи скетч в LoadImage.\n2. Qwen Edit 2511 ($0.03/MP) превращает скетч в объёмный рендер — правь prompt под свой объект. Альтернативы: Gemini Flash 3.1 / Nano Banana Pro.\n3. Bria Remove ($0.018) вырезает объект — чистый фон сильно улучшает 3D.\n4. Tripo H3.1 (geometry=detailed, ~$0.50) делает .glb: файл в output/, ссылка — выход info. Дёшево поитерироваться: geometry=standard ($0.30) или нода Tripo v2.5 ($0.05).\n5. Preview3D — интерактивный вьювер: вращение/зум мышкой прямо в графе.\n\nЕщё варианты 3D: Hunyuan3D v3.1 pro (мульти-вид: скетч спереди + виды сбоку/сзади) и Hunyuan Sketch→3D ($0.375) — скетч сразу в 3D без шагов 2-3 (быстрая проба, но текстура беднее, чем через рендер).\nЕсли скетч совсем сырой и Qwen буксует — Nano Banana Pro Edit из пака gokayfem тем же промптом."],
       "title": "README"
     },
     {
@@ -115,9 +115,9 @@
     },
     {
       "id": 6,
-      "type": "FalTripoImageTo3D",
+      "type": "FalTripoH31",
       "pos": [1190, 400],
-      "size": [330, 330],
+      "size": [330, 360],
       "flags": {},
       "order": 6,
       "mode": 0,
@@ -130,11 +130,12 @@
         {"name": "preview", "type": "IMAGE", "links": [6], "slot_index": 2},
         {"name": "info", "type": "STRING", "links": null, "slot_index": 3}
       ],
-      "properties": {"Node name for S&R": "FalTripoImageTo3D"},
+      "properties": {"Node name for S&R": "FalTripoH31"},
       "widgets_values": [
+        "detailed",
         "standard",
         true,
-        false,
+        true,
         false,
         0,
         "original_image",
@@ -142,7 +143,7 @@
         0,
         "fixed"
       ],
-      "title": "4. Image → 3D (Tripo v2.5, $0.05)"
+      "title": "4. Image → 3D (Tripo H3.1, detailed, ~$0.50)"
     },
     {
       "id": 7,

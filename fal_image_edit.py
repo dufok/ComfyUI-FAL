@@ -394,6 +394,8 @@ class FalGeminiFlashEdit:
             "optional": {
                 "image_2": ("IMAGE",),
                 "image_3": ("IMAGE",),
+                "system_prompt": ("STRING", {"default": "", "multiline": True,
+                                             "tooltip": "3.1 only. Gemini has NO negative prompt — phrase exclusions here or in the prompt ('no text, no watermark')."}),
                 "num_images": ("INT", {"default": 1, "min": 1, "max": 4}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
             },
@@ -405,7 +407,7 @@ class FalGeminiFlashEdit:
     CATEGORY = "FAL/Image Edit/Edit"
 
     def run(self, image, prompt, version, resolution, image_2=None, image_3=None,
-            num_images=1, seed=0):
+            system_prompt="", num_images=1, seed=0):
         if not prompt.strip():
             raise RuntimeError("prompt is required")
         urls = upload_image_frames(image)
@@ -420,6 +422,8 @@ class FalGeminiFlashEdit:
         }
         if version == "3.1-flash-preview":
             args["resolution"] = resolution
+            if system_prompt.strip():
+                args["system_prompt"] = system_prompt.strip()
         return (run_image(self.ENDPOINTS[version], _seed_arg(args, seed)),)
 
 

@@ -33,8 +33,11 @@ in-graph 3D view, or open `download_url` in a browser to grab the file for Blend
 
 | Node | Endpoint | ~Cost |
 |---|---|---|
-| FAL 3D — Tripo v2.5 | `tripo3d/tripo/v2.5/image-to-3d` | ~$0.05 |
+| FAL 3D — Tripo v2.5 (draft) | `tripo3d/tripo/v2.5/image-to-3d` | ~$0.05 |
+| FAL 3D — Tripo H3.1 (quality dial) | `tripo3d/h3.1/image-to-3d` | $0.20–0.40 base, +$0.20 detailed geometry, +$0.05 quad |
 | FAL 3D — Hunyuan3D v2 | `fal-ai/hunyuan3d/v2` | ~$0.16 white / ~$0.48 textured |
+| FAL 3D — Hunyuan3D v3.1 pro/rapid | `fal-ai/hunyuan-3d/v3.1/...` | pro $0.375 / rapid $0.225, +$0.15 each: PBR, multiview, custom face count |
+| FAL 3D — Hunyuan Sketch→3D | `fal-ai/hunyuan3d-v3/sketch-to-3d` | $0.375, +$0.15 PBR |
 | FAL 3D — TRELLIS | `fal-ai/trellis` | varies |
 
 ### `FAL/Background` — Bria
