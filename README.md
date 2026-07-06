@@ -59,6 +59,7 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | FAL Inpaint — Bria GenFill v2 | `bria/genfill/v2` | mask + instruction | $0.04/MP |
 | FAL Edit — Qwen Image Edit 2511 (newest) | `fal-ai/qwen-image-edit-2511` | prompt, multi-ref | $0.03/MP |
 | FAL Edit — Seedream v4.5 / v5-lite | `fal-ai/bytedance/seedream/...` | prompt, up to 10 refs | $0.04 |
+| FAL Edit — Gemini Flash 3.1 / 2.5 | `fal-ai/gemini-3.1-flash-image-preview/edit`, `fal-ai/gemini-25-flash-image/edit` | prompt, multi-ref, up to 4K (3.1) | $0.04–0.08 |
 | FAL Upscale — SeedVR v2 | `fal-ai/seedvr/upscale/image` | factor or target res | varies |
 | FAL Upscale — Topaz | `fal-ai/topaz/upscale/image` | 11 models, face enhance | varies |
 | FAL Upscale — Recraft Crisp | `fal-ai/recraft/upscale/crisp` | image only | cheap |

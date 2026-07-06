@@ -12,6 +12,7 @@ One bar for everyday photo work — the newest FAL models per task, cheapest-fir
            * FalBriaGenFill        -> bria/genfill/v2                  ($0.04/MP, generate object in mask)
   Edit     * FalQwenImageEdit2511  -> fal-ai/qwen-image-edit-2511      ($0.03/MP, prompt, multi-ref)
            * FalSeedreamEdit       -> bytedance/seedream v4.5 | v5-lite ($0.04/img, up to 10 refs)
+           * FalGeminiFlashEdit    -> gemini 3.1-flash-preview | 2.5-flash ($0.04-0.08, Google, multi-ref)
   Upscale  * FalSeedVRUpscale      -> fal-ai/seedvr/upscale/image      (SeedVR2)
            * FalTopazUpscale       -> fal-ai/topaz/upscale/image       (photo standard)
            * FalRecraftCrispUpscale-> fal-ai/recraft/upscale/crisp     (cheap utility)
@@ -370,6 +371,58 @@ class FalSeedreamEdit:
         return (run_image(self.ENDPOINTS[version], args),)
 
 
+class FalGeminiFlashEdit:
+    """Google Gemini Flash Image edit — 3.1 preview (newest, $0.08/1K, up to 4K) or
+    2.5 ($0.039). Multi-ref like Nano Banana (same family), prompt references images
+    by number. Nano Banana Pro = Gemini 3 Pro, this is its cheaper/fresher Flash tier."""
+
+    ENDPOINTS = {
+        "3.1-flash-preview": "fal-ai/gemini-3.1-flash-image-preview/edit",
+        "2.5-flash": "fal-ai/gemini-25-flash-image/edit",
+    }
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "prompt": ("STRING", {"default": "", "multiline": True}),
+                "version": (list(cls.ENDPOINTS), {"default": "3.1-flash-preview"}),
+                "resolution": (["0.5K", "1K", "2K", "4K"],
+                               {"default": "1K", "tooltip": "3.1 only; 2.5 ignores it."}),
+            },
+            "optional": {
+                "image_2": ("IMAGE",),
+                "image_3": ("IMAGE",),
+                "num_images": ("INT", {"default": 1, "min": 1, "max": 4}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Edit"
+
+    def run(self, image, prompt, version, resolution, image_2=None, image_3=None,
+            num_images=1, seed=0):
+        if not prompt.strip():
+            raise RuntimeError("prompt is required")
+        urls = upload_image_frames(image)
+        for extra in (image_2, image_3):
+            if extra is not None:
+                urls.extend(upload_image_frames(extra))
+        args = {
+            "image_urls": urls,
+            "prompt": prompt.strip(),
+            "num_images": int(num_images),
+            "output_format": "png",
+        }
+        if version == "3.1-flash-preview":
+            args["resolution"] = resolution
+        return (run_image(self.ENDPOINTS[version], _seed_arg(args, seed)),)
+
+
 # ============================================================================ Upscale
 
 class FalSeedVRUpscale:
@@ -554,6 +607,7 @@ NODE_CLASS_MAPPINGS = {
     "FalBriaGenFill": FalBriaGenFill,
     "FalQwenImageEdit2511": FalQwenImageEdit2511,
     "FalSeedreamEdit": FalSeedreamEdit,
+    "FalGeminiFlashEdit": FalGeminiFlashEdit,
     "FalSeedVRUpscale": FalSeedVRUpscale,
     "FalTopazUpscale": FalTopazUpscale,
     "FalRecraftCrispUpscale": FalRecraftCrispUpscale,
@@ -571,6 +625,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalBriaGenFill": "FAL Inpaint — Bria GenFill v2 ($0.04/MP)",
     "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511, newest ($0.03/MP)",
     "FalSeedreamEdit": "FAL Edit — Seedream v4.5 / v5-lite ($0.04)",
+    "FalGeminiFlashEdit": "FAL Edit — Gemini Flash 3.1 / 2.5 (Google, $0.04–0.08)",
     "FalSeedVRUpscale": "FAL Upscale — SeedVR v2",
     "FalTopazUpscale": "FAL Upscale — Topaz (model in dropdown)",
     "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp",
