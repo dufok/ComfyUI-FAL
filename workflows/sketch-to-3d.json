@@ -1,0 +1,176 @@
+{
+  "last_node_id": 8,
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [50, 250],
+      "size": [315, 314],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0},
+        {"name": "MASK", "type": "MASK", "links": null, "slot_index": 1}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["sketch.png", "image"],
+      "title": "1. Скетч"
+    },
+    {
+      "id": 8,
+      "type": "Note",
+      "pos": [50, 620],
+      "size": [370, 260],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["СКЕТЧ → ОБЪЁМ → 3D (~$0.10 за прогон)\n\n1. Загрузи скетч в LoadImage.\n2. Qwen Edit 2511 ($0.03/MP) превращает скетч в объёмный рендер — правь prompt под свой объект (что за предмет, материал).\n3. Bria Remove ($0.018) вырезает объект — чистый фон сильно улучшает 3D.\n4. Tripo v2.5 ($0.05) делает .glb: файл падает в output/, ссылка на скачивание — в консоли сервера (выход info).\n\nФинальное качество: замени Tripo на FAL 3D — Hunyuan3D v2 (текстурный ~$0.48) или TRELLIS — вход тот же IMAGE.\nЕсли скетч совсем сырой и Qwen буксует — попробуй Nano Banana Pro Edit из пака gokayfem тем же промптом."],
+      "title": "README"
+    },
+    {
+      "id": 2,
+      "type": "FalQwenImageEdit2511",
+      "pos": [430, 250],
+      "size": [400, 430],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "IMAGE", "link": 1},
+        {"name": "image_2", "type": "IMAGE", "link": null},
+        {"name": "image_3", "type": "IMAGE", "link": null}
+      ],
+      "outputs": [
+        {"name": "images", "type": "IMAGE", "links": [2, 3], "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "FalQwenImageEdit2511"},
+      "widgets_values": [
+        "Turn this sketch into a realistic 3D render of the object. Solid volumetric forms, accurate proportions from the sketch, soft studio lighting, subtle shadows, matte material, single object fully in frame, centered, on a plain light-gray seamless background, product-photo style. No sketch lines, no paper texture, no text.",
+        4.5,
+        28,
+        "regular",
+        "flat, 2d, drawing, sketch lines, outline only, paper background, text, watermark",
+        1,
+        0,
+        "fixed"
+      ],
+      "title": "2. Скетч → объёмный рендер (Qwen 2511)"
+    },
+    {
+      "id": 3,
+      "type": "PreviewImage",
+      "pos": [880, 40],
+      "size": [260, 280],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 2}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": [],
+      "title": "Рендер"
+    },
+    {
+      "id": 4,
+      "type": "FalBriaBackgroundRemove",
+      "pos": [880, 400],
+      "size": [280, 60],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "IMAGE", "link": 3}
+      ],
+      "outputs": [
+        {"name": "image", "type": "IMAGE", "links": [4, 5], "slot_index": 0},
+        {"name": "mask", "type": "MASK", "links": null, "slot_index": 1}
+      ],
+      "properties": {"Node name for S&R": "FalBriaBackgroundRemove"},
+      "widgets_values": [],
+      "title": "3. Чистый фон (Bria)"
+    },
+    {
+      "id": 5,
+      "type": "PreviewImage",
+      "pos": [1190, 40],
+      "size": [260, 280],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 4}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": [],
+      "title": "Вырезанный объект"
+    },
+    {
+      "id": 6,
+      "type": "FalTripoImageTo3D",
+      "pos": [1190, 400],
+      "size": [330, 330],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "IMAGE", "link": 5}
+      ],
+      "outputs": [
+        {"name": "glb_path", "type": "STRING", "links": null, "slot_index": 0},
+        {"name": "download_url", "type": "STRING", "links": null, "slot_index": 1},
+        {"name": "preview", "type": "IMAGE", "links": [6], "slot_index": 2},
+        {"name": "info", "type": "STRING", "links": null, "slot_index": 3}
+      ],
+      "properties": {"Node name for S&R": "FalTripoImageTo3D"},
+      "widgets_values": [
+        "standard",
+        true,
+        false,
+        false,
+        0,
+        "original_image",
+        "default",
+        0,
+        "fixed"
+      ],
+      "title": "4. Image → 3D (Tripo v2.5, $0.05)"
+    },
+    {
+      "id": 7,
+      "type": "PreviewImage",
+      "pos": [1570, 250],
+      "size": [280, 300],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 6}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": [],
+      "title": "Превью 3D"
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "IMAGE"],
+    [2, 2, 0, 3, 0, "IMAGE"],
+    [3, 2, 0, 4, 0, "IMAGE"],
+    [4, 4, 0, 5, 0, "IMAGE"],
+    [5, 4, 0, 6, 0, "IMAGE"],
+    [6, 6, 2, 7, 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
