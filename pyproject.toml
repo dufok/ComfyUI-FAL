@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-fal"
-description = "FAL nodes ComfyUI doesn't have yet: image→3D (Tripo/Hunyuan3D/Trellis, no GPU) + Bria background, plus a model-catalog registry and new-model checker. Coexists with gokayfem/ComfyUI-fal-API."
-version = "0.1.0"
+description = "FAL nodes ComfyUI doesn't have yet: image→3D (Tripo/Hunyuan3D/Trellis, no GPU), Bria background, and an Image Edit bar (object removal, erasers, inpaint, edit, upscale, expand — newest models with prices in the node names), plus a model-catalog registry and new-model checker. Coexists with gokayfem/ComfyUI-fal-API."
+version = "0.2.0"
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.10"

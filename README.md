@@ -1,8 +1,10 @@
 # ComfyUI-FAL
 
-**FAL nodes ComfyUI doesn't have yet** — image→3D (Tripo / Hunyuan3D / TRELLIS, **no local GPU**)
-and Bria background removal, plus a **model-catalog registry** and **new-model checker** that no
-other FAL pack ships. Everything is browsable in the node tree under the **`FAL/`** category.
+**FAL nodes ComfyUI doesn't have yet** — image→3D (Tripo / Hunyuan3D / TRELLIS, **no local GPU**),
+Bria background removal, and an **Image Edit bar** (object removal, erasers, mask inpaint, prompt
+edit, upscalers, outpaint — the newest FAL models, prices right in the node names), plus a
+**model-catalog registry** and **new-model checker** that no other FAL pack ships. Everything is
+browsable in the node tree under the **`FAL/`** category.
 
 Built on [FAL](https://fal.ai); one `FAL_KEY`, pay-as-you-go, all heavy compute is in the cloud.
 
@@ -39,6 +41,28 @@ open `download_url` in a browser to grab it, then drop into Blender / any glTF v
 |---|---|---|---|
 | FAL Background — Bria Remove | `fal-ai/bria/background/remove` | IMAGE + MASK | ~$0.018 |
 | FAL Background — Bria Replace | `fal-ai/bria/background/replace` | IMAGE(s) | varies |
+
+### `FAL/Image Edit` — remove / inpaint / edit / upscale / expand
+
+One bar for everyday photo work, newest model per task. Masks follow ComfyUI convention
+(MASK 1.0 = the area to remove/inpaint).
+
+| Node | Endpoint | Input | ~Cost |
+|---|---|---|---|
+| FAL Remove — Object Removal | `fal-ai/object-removal[/mask]` | prompt **or** mask | $0.006–0.024 |
+| FAL Remove — Bria Eraser | `fal-ai/bria/eraser` | mask | $0.04 |
+| FAL Remove — Flux Pro Erase | `fal-ai/flux-pro/v1/erase` | mask | ~$0.03/MP |
+| FAL Remove — Finegrain Eraser | `fal-ai/finegrain-eraser` | prompt (kills shadows/reflections) | $0.18–0.36 |
+| FAL Inpaint — Z-Image Turbo | `fal-ai/z-image/turbo/inpaint` | mask + prompt | $0.01/MP |
+| FAL Inpaint — Qwen Image Edit | `fal-ai/qwen-image-edit/inpaint` | mask + prompt | ~$0.03/MP |
+| FAL Inpaint — Bria GenFill v2 | `bria/genfill/v2` | mask + instruction | $0.04/MP |
+| FAL Edit — Qwen Image Edit 2511 | `fal-ai/qwen-image-edit-2511` | prompt, multi-ref | $0.03/MP |
+| FAL Edit — Seedream v4.5 / v5-lite | `fal-ai/bytedance/seedream/...` | prompt, up to 10 refs | $0.04 |
+| FAL Upscale — SeedVR2 | `fal-ai/seedvr/upscale/image` | factor or target res | varies |
+| FAL Upscale — Topaz | `fal-ai/topaz/upscale/image` | 11 models, face enhance | varies |
+| FAL Upscale — Recraft Crisp | `fal-ai/recraft/upscale/crisp` | image only | cheap |
+| FAL Upscale — Clarity | `fal-ai/clarity-upscaler` | creativity/resemblance | varies |
+| FAL Expand — Bria Outpaint | `fal-ai/bria/expand` | canvas size (+prompt) | varies |
 
 ## Catalog registry (`fal_registry.py`)
 
@@ -77,6 +101,7 @@ __init__.py        merges each module's NODE_CLASS_MAPPINGS
 fal_common.py      shared helpers (upload, result parsing, file save, mesh runner)
 fal_3d.py          FAL/3D nodes
 fal_background.py  FAL/Background nodes (Bria)
+fal_image_edit.py  FAL/Image Edit nodes (remove / inpaint / edit / upscale / expand)
 fal_registry.py    catalog list / search / schema / diff
 ```
 

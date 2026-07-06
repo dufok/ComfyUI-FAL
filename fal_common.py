@@ -57,6 +57,41 @@ def upload_image(image):
             pass
 
 
+def upload_image_frames(image):
+    """Every frame of an IMAGE tensor -> list of uploaded FAL URLs (batch = multi-ref input)."""
+    if image is None:
+        raise RuntimeError("no 'image' connected — connect a LoadImage (or any IMAGE) output")
+    urls = []
+    for frame in image:
+        path = tensor_frame_to_png_path(frame)
+        try:
+            urls.append(fal_client.upload_file(path))
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+    return urls
+
+
+def upload_mask(mask):
+    """MASK tensor [B,H,W] (1 = area to edit) -> uploaded grayscale PNG URL (white = edit)."""
+    if mask is None:
+        raise RuntimeError("no 'mask' connected — draw one in MaskEditor or connect a MASK output")
+    arr = mask[0].detach().cpu().numpy()
+    arr = (np.clip(arr, 0.0, 1.0) * 255.0).astype(np.uint8)
+    fd, path = tempfile.mkstemp(suffix=".png", prefix="fal_mask_")
+    os.close(fd)
+    Image.fromarray(arr, mode="L").save(path, format="PNG")
+    try:
+        return fal_client.upload_file(path)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
 # --------------------------------------------------------------------------- result parsing
 
 def deep_find(obj, key):
@@ -148,6 +183,17 @@ def images_from_result(result):
         return torch.stack(tensors, 0)
     except Exception:
         return tensors[0].unsqueeze(0)
+
+
+# --------------------------------------------------------------------------- image runner
+
+def run_image(endpoint, arguments):
+    """submit -> wait -> batched IMAGE tensor from any FAL image endpoint."""
+    require_key()
+    printable = {k: (f"<{len(v)} urls>" if k == "image_urls" else v) for k, v in arguments.items()}
+    print(f"[FAL] {endpoint} <- {printable}")
+    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    return images_from_result(result)
 
 
 # --------------------------------------------------------------------------- files (meshes etc.)
