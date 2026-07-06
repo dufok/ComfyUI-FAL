@@ -27,8 +27,9 @@ What's distinctive here:
 ## Nodes
 
 ### `FAL/3D` — image → 3D mesh (`.glb`)
-Output: `(glb_path, download_url, preview, info)`. The `.glb` lands in ComfyUI's `output/`;
-open `download_url` in a browser to grab it, then drop into Blender / any glTF viewer.
+Output: `(glb_file, download_url, preview, info)`. The `.glb` lands in ComfyUI's `output/`;
+`glb_file` is relative to it — wire it into the core **Preview3D** node for an interactive
+in-graph 3D view, or open `download_url` in a browser to grab the file for Blender.
 
 | Node | Endpoint | ~Cost |
 |---|---|---|

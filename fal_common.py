@@ -219,7 +219,11 @@ def mesh_url(result):
 
 
 def save_file(url, prefix):
-    """Download a URL into ComfyUI's output dir, return (path, download_url, size_mb)."""
+    """Download a URL into ComfyUI's output dir, return (fname, download_url, size_mb).
+
+    `fname` is relative to the output dir — exactly what the core Preview3D node's
+    model_file input expects.
+    """
     clean = url.split("?")[0]
     ext = clean.rsplit(".", 1)[-1].lower()
     if ext not in ("glb", "gltf", "fbx", "zip", "png", "jpg", "jpeg", "webp"):
@@ -230,31 +234,35 @@ def save_file(url, prefix):
     dest = os.path.join(out_dir, fname)
     urllib.request.urlretrieve(url, dest)
     size_mb = os.path.getsize(dest) / 1_000_000
-    return dest, public_download_url(fname), size_mb
+    return fname, public_download_url(fname), size_mb
 
 
 # --------------------------------------------------------------------------- mesh runner (3D)
 
 MESH_RET_TYPES = ("STRING", "STRING", "IMAGE", "STRING")
-MESH_RET_NAMES = ("glb_path", "download_url", "preview", "info")
+MESH_RET_NAMES = ("glb_file", "download_url", "preview", "info")
 
 
 def run_mesh(endpoint, arguments, prefix, want_preview=True):
-    """submit -> wait -> download mesh -> 4-tuple, with the link folded into `info`."""
+    """submit -> wait -> download mesh -> 4-tuple, with the link folded into `info`.
+
+    `glb_file` is relative to ComfyUI's output dir — wire it straight into the core
+    Preview3D node (model_file) for an interactive in-graph 3D view.
+    """
     require_key()
     print(f"[FAL] {endpoint} <- {arguments}")
     result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
     url = mesh_url(result)
     if not url:
         raise RuntimeError(f"no mesh url in FAL response: {result}")
-    dest, download_url, size_mb = save_file(url, prefix)
+    fname, download_url, size_mb = save_file(url, prefix)
     preview = blank_image()
     if want_preview:
         rendered = deep_find(result, "rendered_image")
         thumb = rendered.get("url") if isinstance(rendered, dict) else None
         if thumb:
             preview = url_to_image_tensor(thumb)
-    info = f"{endpoint} -> {os.path.basename(dest)} ({size_mb:.2f} MB)  ⬇ {download_url}"
-    print(f"[FAL] DONE {endpoint} -> {os.path.basename(dest)} ({size_mb:.2f} MB)")
+    info = f"{endpoint} -> {fname} ({size_mb:.2f} MB)  ⬇ {download_url}"
+    print(f"[FAL] DONE {endpoint} -> {fname} ({size_mb:.2f} MB)")
     print(f"[FAL] DOWNLOAD: {download_url}")
-    return (dest, download_url, preview, info)
+    return (fname, download_url, preview, info)

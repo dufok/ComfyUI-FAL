@@ -5,7 +5,9 @@ FAL image-to-3D mesh nodes (category: FAL/3D).
   * FalHunyuan3D        -> fal-ai/hunyuan3d/v2              (high-detail mesh, octree control)
   * FalTrellisImageTo3D -> fal-ai/trellis                  (Microsoft TRELLIS, fine control)
 
-Each: IMAGE in -> (glb_path, download_url, preview, info). The .glb lands in /app/output/.
+Each: IMAGE in -> (glb_file, download_url, preview, info). The .glb lands in ComfyUI's
+output dir; glb_file is relative to it — wire into the core Preview3D node to orbit the
+mesh right in the graph.
 """
 from .fal_common import upload_image, run_mesh, MESH_RET_TYPES, MESH_RET_NAMES
 
