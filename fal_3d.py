@@ -10,11 +10,36 @@ FAL image-to-3D mesh nodes (category: FAL/3D).
   * FalHunyuanSketchTo3D -> fal-ai/hunyuan3d-v3/sketch-to-3d     (sketch + prompt -> 3D, $0.375+)
   * FalTrellisImageTo3D  -> fal-ai/trellis                      (Microsoft TRELLIS, fine control)
 
-Each: IMAGE in -> (glb_file, download_url, preview, info). The .glb lands in ComfyUI's
-output dir; glb_file is relative to it — wire into the core Preview3D node to orbit the
-mesh right in the graph.
+  * FalTripoSplat        -> tripo3d/triposplat               (image -> 3D Gaussian Splat, $0.05;
+                             FILE_3D output plugs into the core splat nodes)
+
+Each mesh node: IMAGE in -> (glb_file, download_url, preview, info). The .glb lands in
+ComfyUI's output dir; glb_file is relative to it — wire into the core Preview3D node to
+orbit the mesh right in the graph.
 """
-from .fal_common import upload_image, run_mesh, MESH_RET_TYPES, MESH_RET_NAMES
+import io
+import os
+import urllib.request
+
+import fal_client
+import folder_paths
+
+from .fal_common import (
+    upload_image,
+    run_mesh,
+    require_key,
+    deep_find,
+    url_to_image_tensor,
+    blank_image,
+    public_download_url,
+    MESH_RET_TYPES,
+    MESH_RET_NAMES,
+)
+
+try:
+    from comfy_api.latest import Types as _comfy_types  # File3D for the core splat nodes
+except ImportError:  # pre-2026 ComfyUI without comfy_api geometry types
+    _comfy_types = None
 
 
 class FalTripoImageTo3D:
@@ -291,6 +316,82 @@ class FalTrellisImageTo3D:
         return run_mesh("fal-ai/trellis", args, "trellis", want_preview=False)
 
 
+class FalTripoSplat:
+    """tripo3d/triposplat — one photo -> 3D Gaussian Splat, $0.05. The splat_3d output
+    plugs straight into the core splat nodes: Get Splat -> Transform / Render / Extract
+    Mesh from Splat / Create 3D File -> Save 3D Model (interactive viewer). The raw file
+    also lands in output/ (splat_file + download_url)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "num_gaussians": ("INT", {"default": 262144, "min": 32768, "max": 1048576, "step": 32,
+                                          "tooltip": "262144 matches the model's native density; higher = denser but no new detail."}),
+                "num_inference_steps": ("INT", {"default": 20, "min": 1, "max": 50}),
+                "guidance_scale": ("FLOAT", {"default": 3.0, "min": 0.0, "max": 20.0, "step": 0.1}),
+            },
+            "optional": {
+                "output_format": (["ply", "splat"], {"default": "ply",
+                                  "tooltip": "ply carries full spherical harmonics — best for Get Splat / editing."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
+            },
+        }
+
+    RETURN_TYPES = ("FILE_3D", "STRING", "STRING", "IMAGE", "STRING")
+    RETURN_NAMES = ("splat_3d", "splat_file", "download_url", "preview", "info")
+    FUNCTION = "generate"
+    CATEGORY = "FAL/3D"
+    OUTPUT_NODE = True
+
+    def generate(self, image, num_gaussians, num_inference_steps, guidance_scale,
+                 output_format="ply", seed=0):
+        require_key()
+        args = {
+            "image_url": upload_image(image),
+            "num_gaussians": int(num_gaussians),
+            "num_inference_steps": int(num_inference_steps),
+            "guidance_scale": float(guidance_scale),
+            "output_format": output_format,
+        }
+        if seed:
+            args["seed"] = int(seed)
+        print(f"[FAL] tripo3d/triposplat <- {args}")
+        result = fal_client.subscribe("tripo3d/triposplat", arguments=args, with_logs=False)
+        node = deep_find(result, "model_mesh")
+        url = node.get("url") if isinstance(node, dict) else (node if isinstance(node, str) else None)
+        if not url:
+            raise RuntimeError(f"no splat url in FAL response: {result}")
+        with urllib.request.urlopen(url, timeout=300) as r:
+            data = r.read()
+
+        base = os.path.basename(url.split("?")[0]) or f"triposplat.{output_format}"
+        if "." not in base:
+            base = f"{base}.{output_format}"
+        fname = f"triposplat_{base}"
+        with open(os.path.join(folder_paths.get_output_directory(), fname), "wb") as f:
+            f.write(data)
+        download_url = public_download_url(fname)
+
+        splat_3d = None
+        if _comfy_types is not None:
+            splat_3d = _comfy_types.File3D(io.BytesIO(data), file_format=output_format)
+        else:
+            print("[FAL] warning: this ComfyUI has no comfy_api File3D — splat_3d output is empty, "
+                  "load the saved file from output/ instead")
+
+        preview = blank_image()
+        pre = deep_find(result, "preprocessed_image")
+        thumb = pre.get("url") if isinstance(pre, dict) else (pre if isinstance(pre, str) else None)
+        if thumb:
+            preview = url_to_image_tensor(thumb)
+
+        info = f"tripo3d/triposplat -> {fname} ({len(data) / 1_000_000:.2f} MB)  ⬇ {download_url}"
+        print(f"[FAL] DONE {info}")
+        return (splat_3d, fname, download_url, preview, info)
+
+
 NODE_CLASS_MAPPINGS = {
     "FalTripoImageTo3D": FalTripoImageTo3D,
     "FalTripoH31": FalTripoH31,
@@ -298,6 +399,7 @@ NODE_CLASS_MAPPINGS = {
     "FalHunyuan3DV31": FalHunyuan3DV31,
     "FalHunyuanSketchTo3D": FalHunyuanSketchTo3D,
     "FalTrellisImageTo3D": FalTrellisImageTo3D,
+    "FalTripoSplat": FalTripoSplat,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FalTripoImageTo3D": "FAL 3D — Tripo v2.5, draft (~$0.05)",
@@ -306,4 +408,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalHunyuan3DV31": "FAL 3D — Hunyuan3D v3.1 pro/rapid ($0.225–0.525)",
     "FalHunyuanSketchTo3D": "FAL 3D — Hunyuan Sketch→3D (prompt, $0.375+)",
     "FalTrellisImageTo3D": "FAL 3D — TRELLIS (fine control)",
+    "FalTripoSplat": "FAL 3D — TripoSplat, Gaussian Splat ($0.05)",
 }

@@ -39,6 +39,11 @@ in-graph 3D view, or open `download_url` in a browser to grab the file for Blend
 | FAL 3D — Hunyuan3D v3.1 pro/rapid | `fal-ai/hunyuan-3d/v3.1/...` | pro $0.375 / rapid $0.225, +$0.15 each: PBR, multiview, custom face count |
 | FAL 3D — Hunyuan Sketch→3D | `fal-ai/hunyuan3d-v3/sketch-to-3d` | $0.375, +$0.15 PBR |
 | FAL 3D — TRELLIS | `fal-ai/trellis` | varies |
+| FAL 3D — TripoSplat (Gaussian Splat) | `tripo3d/triposplat` | $0.05 |
+
+TripoSplat outputs a `FILE_3D` (`splat_3d`) that plugs straight into ComfyUI's core splat
+nodes: **Get Splat → Transform / Render / Extract Mesh from Splat / Create 3D File →
+Save 3D Model** (interactive viewer). The `.ply` also lands in `output/`.
 
 ### `FAL/Background` — Bria
 | Node | Endpoint | Output | ~Cost |
