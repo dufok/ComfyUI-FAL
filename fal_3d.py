@@ -328,8 +328,8 @@ class FalTripoSplat:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "num_gaussians": ("INT", {"default": 262144, "min": 32768, "max": 1048576, "step": 32,
-                                          "tooltip": "262144 matches the model's native density; higher = denser but no new detail."}),
+                "num_gaussians": ("INT", {"default": 262144, "min": 32768, "max": 262144, "step": 32,
+                                          "tooltip": "FAL caps this at 262144 (the model's native density) — higher values are rejected with a 422."}),
                 "num_inference_steps": ("INT", {"default": 20, "min": 1, "max": 50}),
                 "guidance_scale": ("FLOAT", {"default": 3.0, "min": 0.0, "max": 20.0, "step": 0.1}),
             },
@@ -352,7 +352,7 @@ class FalTripoSplat:
         require_key()
         args = {
             "image_url": upload_image_rgba(image, mask) if mask is not None else upload_image(image),
-            "num_gaussians": int(num_gaussians),
+            "num_gaussians": min(int(num_gaussians), 262144),  # FAL rejects higher with 422
             "num_inference_steps": int(num_inference_steps),
             "guidance_scale": float(guidance_scale),
             "output_format": output_format,
