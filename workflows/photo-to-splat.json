@@ -1,0 +1,139 @@
+{
+  "last_node_id": 7,
+  "last_link_id": 5,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [50, 200],
+      "size": [315, 314],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0},
+        {"name": "MASK", "type": "MASK", "links": null, "slot_index": 1}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["photo.png", "image"],
+      "title": "1. Фото объекта"
+    },
+    {
+      "id": 7,
+      "type": "Note",
+      "pos": [50, 570],
+      "size": [370, 220],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["ФОТО → GAUSSIAN SPLAT ($0.05)\n\nЦепочка типов: FAL TripoSplat отдаёт ФАЙЛ (FILE_3D, .ply с FAL) → Get Splat распаковывает его в SPLAT → Create 3D File пересобирает в spz → Save 3D Model показывает цветной сплат во вьювере.\n\nНапрямую FAL-ноду в Create 3D File воткнуть нельзя — его вход принимает только SPLAT, конвертер = Get Splat.\n\nnum_gaussians: потолок FAL = 262144 (выше — ошибка 422).\nМаска опциональна (1 = объект): без неё FAL сам режет фон.\nПосле Get Splat можно вставить Transform Splat / Render Splat (frames 60 = turntable) / Extract Mesh from Splat.\nПолные SH-цвета — в .ply по ссылке из info (открывать в SuperSplat)."],
+      "title": "README"
+    },
+    {
+      "id": 2,
+      "type": "FalTripoSplat",
+      "pos": [430, 200],
+      "size": [340, 320],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "IMAGE", "link": 1},
+        {"name": "mask", "type": "MASK", "link": null}
+      ],
+      "outputs": [
+        {"name": "splat_3d", "type": "FILE_3D", "links": [2], "slot_index": 0},
+        {"name": "splat_file", "type": "STRING", "links": null, "slot_index": 1},
+        {"name": "download_url", "type": "STRING", "links": null, "slot_index": 2},
+        {"name": "preview", "type": "IMAGE", "links": [3], "slot_index": 3},
+        {"name": "info", "type": "STRING", "links": null, "slot_index": 4}
+      ],
+      "properties": {"Node name for S&R": "FalTripoSplat"},
+      "widgets_values": [262144, 20, 3.0, "ply", 0, "fixed"],
+      "title": "2. FAL TripoSplat ($0.05)"
+    },
+    {
+      "id": 3,
+      "type": "PreviewImage",
+      "pos": [430, 580],
+      "size": [280, 280],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 3}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": [],
+      "title": "Препроцесс FAL"
+    },
+    {
+      "id": 4,
+      "type": "File3DToSplat",
+      "pos": [830, 200],
+      "size": [280, 60],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "model_3d", "type": "FILE_3D", "link": 2}
+      ],
+      "outputs": [
+        {"name": "splat", "type": "SPLAT", "links": [4], "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "File3DToSplat"},
+      "widgets_values": [],
+      "title": "3. Get Splat (файл → SPLAT)"
+    },
+    {
+      "id": 5,
+      "type": "SplatToFile3D",
+      "pos": [830, 330],
+      "size": [280, 80],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"name": "splat", "type": "SPLAT", "link": 4}
+      ],
+      "outputs": [
+        {"name": "model_3d", "type": "FILE_3D", "links": [5], "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "SplatToFile3D"},
+      "widgets_values": ["spz"],
+      "title": "4. Create 3D File (spz)"
+    },
+    {
+      "id": 6,
+      "type": "SaveGLB",
+      "pos": [1160, 200],
+      "size": [400, 460],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {"name": "mesh", "type": "FILE_3D", "link": 5}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveGLB"},
+      "widgets_values": ["3d/triposplat"],
+      "title": "5. Save 3D Model (цветной вьювер)"
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "IMAGE"],
+    [2, 2, 0, 4, 0, "FILE_3D"],
+    [3, 2, 3, 3, 0, "IMAGE"],
+    [4, 4, 0, 5, 0, "SPLAT"],
+    [5, 5, 0, 6, 0, "FILE_3D"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
