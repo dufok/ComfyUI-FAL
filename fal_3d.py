@@ -26,6 +26,7 @@ import folder_paths
 
 from .fal_common import (
     upload_image,
+    upload_image_rgba,
     run_mesh,
     require_key,
     deep_find,
@@ -333,6 +334,7 @@ class FalTripoSplat:
                 "guidance_scale": ("FLOAT", {"default": 3.0, "min": 0.0, "max": 20.0, "step": 0.1}),
             },
             "optional": {
+                "mask": ("MASK", {"tooltip": "Optional subject mask (1 = object). Baked into the alpha channel before upload, like the local TripoSplat preprocess. Without it FAL removes the background itself."}),
                 "output_format": (["ply", "splat"], {"default": "ply",
                                   "tooltip": "ply carries full spherical harmonics — best for Get Splat / editing."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
@@ -346,10 +348,10 @@ class FalTripoSplat:
     OUTPUT_NODE = True
 
     def generate(self, image, num_gaussians, num_inference_steps, guidance_scale,
-                 output_format="ply", seed=0):
+                 mask=None, output_format="ply", seed=0):
         require_key()
         args = {
-            "image_url": upload_image(image),
+            "image_url": upload_image_rgba(image, mask) if mask is not None else upload_image(image),
             "num_gaussians": int(num_gaussians),
             "num_inference_steps": int(num_inference_steps),
             "guidance_scale": float(guidance_scale),

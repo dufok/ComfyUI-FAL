@@ -74,6 +74,27 @@ def upload_image_frames(image):
     return urls
 
 
+def upload_image_rgba(image, mask):
+    """IMAGE + MASK (1 = subject) -> uploaded RGBA PNG URL with the mask as alpha."""
+    if image is None:
+        raise RuntimeError("no 'image' connected — connect a LoadImage (or any IMAGE) output")
+    rgb = (np.clip(image[0].detach().cpu().numpy(), 0.0, 1.0) * 255.0).astype(np.uint8)
+    a = (np.clip(mask[0].detach().cpu().numpy(), 0.0, 1.0) * 255.0).astype(np.uint8)
+    if a.shape != rgb.shape[:2]:
+        a = np.asarray(Image.fromarray(a, mode="L").resize((rgb.shape[1], rgb.shape[0])))
+    rgba = np.dstack([rgb, a])
+    fd, path = tempfile.mkstemp(suffix=".png", prefix="fal_rgba_")
+    os.close(fd)
+    Image.fromarray(rgba, mode="RGBA").save(path, format="PNG")
+    try:
+        return fal_client.upload_file(path)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
 def upload_mask(mask):
     """MASK tensor [B,H,W] (1 = area to edit) -> uploaded grayscale PNG URL (white = edit)."""
     if mask is None:
