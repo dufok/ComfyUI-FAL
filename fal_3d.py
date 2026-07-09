@@ -1,7 +1,8 @@
 """
 FAL image-to-3D mesh nodes (category: FAL/3D).
 
-  * FalTripoImageTo3D    -> tripo3d/tripo/v2.5/image-to-3d       (cheap/fast draft, ~$0.05)
+  * FalTripoImageTo3D    -> tripo3d/tripo/v2.5/image-to-3d       ($0.20 bare / $0.30 standard /
+                             $0.40 HD texture, +$0.05 quad — Tripo bills in credits, 1 cr = $0.01)
   * FalTripoH31          -> tripo3d/h3.1/image-to-3d             (quality dial: geometry/texture
                              standard|detailed; $0.20-0.40 base, +$0.20 detailed geometry)
   * FalHunyuan3D         -> fal-ai/hunyuan3d/v2                  (octree control)
@@ -404,8 +405,8 @@ NODE_CLASS_MAPPINGS = {
     "FalTripoSplat": FalTripoSplat,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FalTripoImageTo3D": "FAL 3D — Tripo v2.5, draft (~$0.05)",
-    "FalTripoH31": "FAL 3D — Tripo H3.1, quality dial ($0.30–0.65)",
+    "FalTripoImageTo3D": "FAL 3D — Tripo v2.5 ($0.20–0.45)",
+    "FalTripoH31": "FAL 3D — Tripo H3.1, quality dial ($0.20–0.65)",
     "FalHunyuan3D": "FAL 3D — Hunyuan3D v2 (octree)",
     "FalHunyuan3DV31": "FAL 3D — Hunyuan3D v3.1 pro/rapid ($0.225–0.525)",
     "FalHunyuanSketchTo3D": "FAL 3D — Hunyuan Sketch→3D (prompt, $0.375+)",
