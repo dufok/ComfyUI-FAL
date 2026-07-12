@@ -324,12 +324,15 @@ class FalQwenImageEdit2511:
 
 
 class FalSeedreamEdit:
-    """Bytedance Seedream edit, $0.04/image — natural-language multi-ref editing
-    ('replace the product in image 1 with the one from image 2'). v4.5 or v5 lite."""
+    """Bytedance Seedream edit — natural-language multi-ref editing ('replace the
+    product in image 1 with the one from image 2'), up to 10 refs.
+    v5-pro: region-precise, layer separation, sketch completion ($0.0675/1.5K, $0.135/2K).
+    v5-lite / v4.5: ~$0.04. Seed input works on v4.5 only."""
 
     ENDPOINTS = {
+        "v5-pro": "bytedance/seedream/v5/pro/edit",
+        "v5-lite": "bytedance/seedream/v5/lite/edit",
         "v4.5": "fal-ai/bytedance/seedream/v4.5/edit",
-        "v5-lite": "fal-ai/bytedance/seedream/v5/lite/edit",
     }
 
     @classmethod
@@ -338,7 +341,7 @@ class FalSeedreamEdit:
             "required": {
                 "image": ("IMAGE",),
                 "prompt": ("STRING", {"default": "", "multiline": True}),
-                "version": (list(cls.ENDPOINTS), {"default": "v4.5"}),
+                "version": (list(cls.ENDPOINTS), {"default": "v5-pro"}),
             },
             "optional": {
                 "image_2": ("IMAGE",),
@@ -628,7 +631,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalQwenImageEditInpaint": "FAL Inpaint — Qwen Image Edit v1 (mask, 2511 has none)",
     "FalBriaGenFill": "FAL Inpaint — Bria GenFill v2 ($0.04/MP)",
     "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511, newest ($0.03/MP)",
-    "FalSeedreamEdit": "FAL Edit — Seedream v4.5 / v5-lite ($0.04)",
+    "FalSeedreamEdit": "FAL Edit — Seedream v5-pro / v5-lite / v4.5 ($0.04–0.14)",
     "FalGeminiFlashEdit": "FAL Edit — Gemini Flash 3.1 / 2.5 (Google, $0.04–0.08)",
     "FalSeedVRUpscale": "FAL Upscale — SeedVR v2",
     "FalTopazUpscale": "FAL Upscale — Topaz (model in dropdown)",
