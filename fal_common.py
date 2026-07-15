@@ -247,7 +247,7 @@ def save_file(url, prefix):
     """
     clean = url.split("?")[0]
     ext = clean.rsplit(".", 1)[-1].lower()
-    if ext not in ("glb", "gltf", "fbx", "zip", "png", "jpg", "jpeg", "webp"):
+    if ext not in ("glb", "gltf", "fbx", "zip", "png", "jpg", "jpeg", "webp", "svg", "ply", "splat", "spz"):
         ext = "glb"
     base = os.path.basename(clean) or f"{prefix}.{ext}"
     fname = f"{prefix}_{base}"

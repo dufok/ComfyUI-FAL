@@ -21,11 +21,16 @@ One bar for everyday photo work — the newest FAL models per task, cheapest-fir
 
 Masks follow ComfyUI convention: MASK 1.0 = area to remove/inpaint (uploaded as white).
 """
+import fal_client
+
 from .fal_common import (
     run_image,
     upload_image,
     upload_image_frames,
     upload_mask,
+    require_key,
+    deep_find,
+    save_file,
 )
 
 
@@ -602,6 +607,92 @@ class FalBriaExpand:
         return (run_image("fal-ai/bria/expand", _seed_arg(args, seed)),)
 
 
+# ============================================================================ Vector
+
+def _run_svg(endpoint, args, prefix):
+    """Call an image->SVG endpoint, save the .svg into output/, return (file, url, info)."""
+    require_key()
+    print(f"[FAL] {endpoint}")
+    result = fal_client.subscribe(endpoint, arguments=args, with_logs=False)
+    node = deep_find(result, "image") or deep_find(result, "images")
+    if isinstance(node, list):
+        node = node[0] if node else None
+    url = node.get("url") if isinstance(node, dict) else (node if isinstance(node, str) else None)
+    if not url:
+        url = deep_find(result, "url")
+    if not url:
+        raise RuntimeError(f"no svg url in FAL response: {result}")
+    fname, download_url, size_mb = save_file(url, prefix)
+    info = f"{endpoint} -> {fname} ({size_mb:.2f} MB)  ⬇ {download_url}"
+    print(f"[FAL] DONE {info}")
+    return (fname, download_url, info)
+
+
+class FalRecraftVectorize:
+    """fal-ai/recraft/vectorize — AI raster->SVG, zero knobs, $0.01. Best for logos,
+    illustrations, flat graphics. The .svg lands in output/ (download link in info)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"image": ("IMAGE",)}}
+
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("svg_file", "download_url", "info")
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Vector"
+    OUTPUT_NODE = True
+
+    def run(self, image):
+        return _run_svg("fal-ai/recraft/vectorize",
+                        {"image_url": upload_image(image)}, "recraft_vec")
+
+
+class FalImage2SVG:
+    """fal-ai/image2svg — vtracer-style tracer with full control, $0.005. Good for
+    patterns and mechanical tracing; color_precision/filter_speckle are the main dials."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "colormode": (["color", "binary"], {"default": "color"}),
+                "color_precision": ("INT", {"default": 6, "min": 1, "max": 8,
+                                            "tooltip": "Color quantization bits — higher = more colors/layers."}),
+                "filter_speckle": ("INT", {"default": 4, "min": 0, "max": 16,
+                                           "tooltip": "Drop specks smaller than this (px)."}),
+                "mode": (["spline", "polygon"], {"default": "spline"}),
+            },
+            "optional": {
+                "hierarchical": (["stacked", "cutout"], {"default": "stacked"}),
+                "corner_threshold": ("INT", {"default": 60, "min": 0, "max": 180}),
+                "layer_difference": ("INT", {"default": 16, "min": 0, "max": 128}),
+                "path_precision": ("INT", {"default": 3, "min": 0, "max": 8}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("svg_file", "download_url", "info")
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Vector"
+    OUTPUT_NODE = True
+
+    def run(self, image, colormode, color_precision, filter_speckle, mode,
+            hierarchical="stacked", corner_threshold=60, layer_difference=16, path_precision=3):
+        args = {
+            "image_url": upload_image(image),
+            "colormode": colormode,
+            "color_precision": int(color_precision),
+            "filter_speckle": int(filter_speckle),
+            "mode": mode,
+            "hierarchical": hierarchical,
+            "corner_threshold": int(corner_threshold),
+            "layer_difference": int(layer_difference),
+            "path_precision": int(path_precision),
+        }
+        return _run_svg("fal-ai/image2svg", args, "image2svg")
+
+
 # ============================================================================ registry
 
 NODE_CLASS_MAPPINGS = {
@@ -620,6 +711,8 @@ NODE_CLASS_MAPPINGS = {
     "FalRecraftCrispUpscale": FalRecraftCrispUpscale,
     "FalClarityUpscaler": FalClarityUpscaler,
     "FalBriaExpand": FalBriaExpand,
+    "FalRecraftVectorize": FalRecraftVectorize,
+    "FalImage2SVG": FalImage2SVG,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -638,4 +731,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp",
     "FalClarityUpscaler": "FAL Upscale — Clarity (creative)",
     "FalBriaExpand": "FAL Expand — Bria Outpaint",
+    "FalRecraftVectorize": "FAL Vector — Recraft Vectorize ($0.01)",
+    "FalImage2SVG": "FAL Vector — Image2SVG tracer ($0.005)",
 }

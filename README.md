@@ -76,6 +76,8 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | FAL Upscale — Recraft Crisp | `fal-ai/recraft/upscale/crisp` | image only | cheap |
 | FAL Upscale — Clarity | `fal-ai/clarity-upscaler` | creativity/resemblance | varies |
 | FAL Expand — Bria Outpaint | `fal-ai/bria/expand` | canvas size (+prompt) | varies |
+| FAL Vector — Recraft Vectorize | `fal-ai/recraft/vectorize` | image → SVG (AI, zero-config) | $0.01 |
+| FAL Vector — Image2SVG tracer | `fal-ai/image2svg` | image → SVG (vtracer knobs) | $0.005 |
 
 ## Catalog registry (`fal_registry.py`)
 
