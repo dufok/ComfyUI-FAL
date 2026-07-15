@@ -607,6 +607,127 @@ class FalBriaExpand:
         return (run_image("fal-ai/bria/expand", _seed_arg(args, seed)),)
 
 
+# ============================================================================ Finish
+# fal-ai/post-processing/* — $0.001/image finishing touches. Typical series-unification
+# chain: ColorMatch (KJNodes, local, free) -> FalGrain (same style over every frame).
+
+class FalGrain:
+    """fal-ai/post-processing/grain — film grain, 6 stocks. $0.001."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "grain_style": (["modern", "analog", "kodak", "fuji", "cinematic", "newspaper"],
+                                {"default": "cinematic"}),
+                "grain_intensity": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 1.0, "step": 0.05}),
+                "grain_scale": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 50.0, "step": 1.0}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Finish"
+
+    def run(self, image, grain_style, grain_intensity, grain_scale):
+        args = {
+            "image_url": upload_image(image),
+            "grain_style": grain_style,
+            "grain_intensity": float(grain_intensity),
+            "grain_scale": float(grain_scale),
+        }
+        return (run_image("fal-ai/post-processing/grain", args),)
+
+
+class FalVignette:
+    """fal-ai/post-processing/vignette — corner darkening. $0.001."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "vignette_strength": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Finish"
+
+    def run(self, image, vignette_strength):
+        args = {"image_url": upload_image(image), "vignette_strength": float(vignette_strength)}
+        return (run_image("fal-ai/post-processing/vignette", args),)
+
+
+class FalColorCorrection:
+    """fal-ai/post-processing/color-correction — global grade: temperature, contrast,
+    saturation, brightness, gamma. $0.001. A poor man's LUT for locking a series look."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "temperature": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0, "step": 0.05}),
+                "contrast": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0, "step": 0.05}),
+                "saturation": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0, "step": 0.05}),
+                "brightness": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0, "step": 0.05}),
+                "gamma": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 3.0, "step": 0.05}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Finish"
+
+    def run(self, image, temperature, contrast, saturation, brightness, gamma):
+        args = {
+            "image_url": upload_image(image),
+            "temperature": float(temperature),
+            "contrast": float(contrast),
+            "saturation": float(saturation),
+            "brightness": float(brightness),
+            "gamma": float(gamma),
+        }
+        return (run_image("fal-ai/post-processing/color-correction", args),)
+
+
+class FalSharpen:
+    """fal-ai/post-processing/sharpen — basic / smart / CAS sharpening. $0.001."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "sharpen_mode": (["basic", "smart", "cas"], {"default": "cas"}),
+                "sharpen_radius": ("INT", {"default": 1, "min": 1, "max": 10}),
+                "sharpen_alpha": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 5.0, "step": 0.1}),
+                "cas_amount": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.05}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image Edit/Finish"
+
+    def run(self, image, sharpen_mode, sharpen_radius, sharpen_alpha, cas_amount):
+        args = {
+            "image_url": upload_image(image),
+            "sharpen_mode": sharpen_mode,
+            "sharpen_radius": int(sharpen_radius),
+            "sharpen_alpha": float(sharpen_alpha),
+            "cas_amount": float(cas_amount),
+        }
+        return (run_image("fal-ai/post-processing/sharpen", args),)
+
+
 # ============================================================================ Vector
 
 def _run_svg(endpoint, args, prefix):
@@ -713,6 +834,10 @@ NODE_CLASS_MAPPINGS = {
     "FalBriaExpand": FalBriaExpand,
     "FalRecraftVectorize": FalRecraftVectorize,
     "FalImage2SVG": FalImage2SVG,
+    "FalGrain": FalGrain,
+    "FalVignette": FalVignette,
+    "FalColorCorrection": FalColorCorrection,
+    "FalSharpen": FalSharpen,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -733,4 +858,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalBriaExpand": "FAL Expand — Bria Outpaint",
     "FalRecraftVectorize": "FAL Vector — Recraft Vectorize ($0.01)",
     "FalImage2SVG": "FAL Vector — Image2SVG tracer ($0.005)",
+    "FalGrain": "FAL Finish — Film Grain ($0.001)",
+    "FalVignette": "FAL Finish — Vignette ($0.001)",
+    "FalColorCorrection": "FAL Finish — Color Correction ($0.001)",
+    "FalSharpen": "FAL Finish — Sharpen ($0.001)",
 }

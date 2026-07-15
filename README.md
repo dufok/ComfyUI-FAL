@@ -78,6 +78,10 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | FAL Expand — Bria Outpaint | `fal-ai/bria/expand` | canvas size (+prompt) | varies |
 | FAL Vector — Recraft Vectorize | `fal-ai/recraft/vectorize` | image → SVG (AI, zero-config) | $0.01 |
 | FAL Vector — Image2SVG tracer | `fal-ai/image2svg` | image → SVG (vtracer knobs) | $0.005 |
+| FAL Finish — Film Grain | `fal-ai/post-processing/grain` | 6 film stocks | $0.001 |
+| FAL Finish — Vignette | `fal-ai/post-processing/vignette` | strength | $0.001 |
+| FAL Finish — Color Correction | `fal-ai/post-processing/color-correction` | temp/contrast/sat/brightness/gamma | $0.001 |
+| FAL Finish — Sharpen | `fal-ai/post-processing/sharpen` | basic/smart/CAS | $0.001 |
 
 ## Catalog registry (`fal_registry.py`)
 
