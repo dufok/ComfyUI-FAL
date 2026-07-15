@@ -610,6 +610,19 @@ class FalBriaExpand:
 # ============================================================================ Finish
 # fal-ai/post-processing/* — $0.001/image finishing touches. Typical series-unification
 # chain: ColorMatch (KJNodes, local, free) -> FalGrain (same style over every frame).
+# These nodes are batch-aware: a batch in = one $0.001 call per frame, batch out.
+
+import torch
+
+
+def _run_finish(endpoint, image, extra):
+    outs = [run_image(endpoint, {"image_url": url, **extra}) for url in upload_image_frames(image)]
+    if len(outs) == 1:
+        return (outs[0],)
+    try:
+        return (torch.cat(outs, 0),)
+    except Exception:
+        return (outs[0],)
 
 class FalGrain:
     """fal-ai/post-processing/grain — film grain, 6 stocks. $0.001."""
@@ -632,13 +645,12 @@ class FalGrain:
     CATEGORY = "FAL/Image Edit/Finish"
 
     def run(self, image, grain_style, grain_intensity, grain_scale):
-        args = {
-            "image_url": upload_image(image),
+        extra = {
             "grain_style": grain_style,
             "grain_intensity": float(grain_intensity),
             "grain_scale": float(grain_scale),
         }
-        return (run_image("fal-ai/post-processing/grain", args),)
+        return _run_finish("fal-ai/post-processing/grain", image, extra)
 
 
 class FalVignette:
@@ -659,8 +671,8 @@ class FalVignette:
     CATEGORY = "FAL/Image Edit/Finish"
 
     def run(self, image, vignette_strength):
-        args = {"image_url": upload_image(image), "vignette_strength": float(vignette_strength)}
-        return (run_image("fal-ai/post-processing/vignette", args),)
+        return _run_finish("fal-ai/post-processing/vignette", image,
+                           {"vignette_strength": float(vignette_strength)})
 
 
 class FalColorCorrection:
@@ -686,15 +698,14 @@ class FalColorCorrection:
     CATEGORY = "FAL/Image Edit/Finish"
 
     def run(self, image, temperature, contrast, saturation, brightness, gamma):
-        args = {
-            "image_url": upload_image(image),
+        extra = {
             "temperature": float(temperature),
             "contrast": float(contrast),
             "saturation": float(saturation),
             "brightness": float(brightness),
             "gamma": float(gamma),
         }
-        return (run_image("fal-ai/post-processing/color-correction", args),)
+        return _run_finish("fal-ai/post-processing/color-correction", image, extra)
 
 
 class FalSharpen:
@@ -718,14 +729,13 @@ class FalSharpen:
     CATEGORY = "FAL/Image Edit/Finish"
 
     def run(self, image, sharpen_mode, sharpen_radius, sharpen_alpha, cas_amount):
-        args = {
-            "image_url": upload_image(image),
+        extra = {
             "sharpen_mode": sharpen_mode,
             "sharpen_radius": int(sharpen_radius),
             "sharpen_alpha": float(sharpen_alpha),
             "cas_amount": float(cas_amount),
         }
-        return (run_image("fal-ai/post-processing/sharpen", args),)
+        return _run_finish("fal-ai/post-processing/sharpen", image, extra)
 
 
 # ============================================================================ Vector
