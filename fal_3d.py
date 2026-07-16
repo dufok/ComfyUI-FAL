@@ -318,6 +318,86 @@ class FalTrellisImageTo3D:
         return run_mesh("fal-ai/trellis", args, "trellis", want_preview=False)
 
 
+def _upload_mesh_file(mesh_file):
+    """Resolve a mesh path (relative to ComfyUI's output dir, e.g. a glb_file output)
+    and upload it to FAL, returning the URL."""
+    path = (mesh_file or "").strip()
+    if not path:
+        raise RuntimeError("mesh_file is empty — wire a glb_file output or type a filename from output/")
+    if not os.path.isabs(path):
+        path = os.path.join(folder_paths.get_output_directory(), path)
+    if not os.path.isfile(path):
+        raise RuntimeError(f"mesh file not found: {path}")
+    return fal_client.upload_file(path)
+
+
+class FalSmartTopology:
+    """fal-ai/hunyuan-3d/v3.1/smart-topology — AI retopology, $0.75. Feed a glb/obj
+    (wire a glb_file output or type a filename from output/); polygon_type
+    'quadrilateral' gives clean quads for Blender/DCC work."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mesh_file": ("STRING", {"default": "", "tooltip": "glb/obj path relative to output/ — wire glb_file from a FAL 3D node. FBX is NOT accepted here."}),
+                "face_level": (["high", "medium", "low"], {"default": "medium"}),
+                "polygon_type": (["quadrilateral", "triangle"], {"default": "quadrilateral"}),
+            },
+        }
+
+    RETURN_TYPES = MESH_RET_TYPES
+    RETURN_NAMES = MESH_RET_NAMES
+    FUNCTION = "generate"
+    CATEGORY = "FAL/3D"
+    OUTPUT_NODE = True
+
+    def generate(self, mesh_file, face_level, polygon_type):
+        ext = mesh_file.strip().split("?")[0].rsplit(".", 1)[-1].lower()
+        if ext not in ("glb", "obj"):
+            raise RuntimeError(f"smart-topology accepts glb/obj only, got .{ext} — "
+                               "generate with quad=false (glb) or convert via Meshy Remesh first")
+        args = {
+            "input_file_url": _upload_mesh_file(mesh_file),
+            "input_file_type": ext,
+            "face_level": face_level,
+            "polygon_type": polygon_type,
+        }
+        return run_mesh("fal-ai/hunyuan-3d/v3.1/smart-topology", args, "smart_topo", want_preview=False)
+
+
+class FalMeshyRemesh:
+    """fal-ai/meshy/v5/remesh — remesh + polycount + format conversion, $0.20.
+    Wire a glb_file output (or type a filename from output/); outputs fbx/obj/usdz
+    for DCC or glb for the viewer."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mesh_file": ("STRING", {"default": "", "tooltip": "Mesh path relative to output/ — wire glb_file from a FAL 3D node."}),
+                "target_polycount": ("INT", {"default": 30000, "min": 100, "max": 300000, "step": 1000}),
+                "topology": (["quad", "triangle"], {"default": "quad"}),
+                "output_format": (["glb", "fbx", "obj", "usdz", "stl"], {"default": "fbx"}),
+            },
+        }
+
+    RETURN_TYPES = MESH_RET_TYPES
+    RETURN_NAMES = MESH_RET_NAMES
+    FUNCTION = "generate"
+    CATEGORY = "FAL/3D"
+    OUTPUT_NODE = True
+
+    def generate(self, mesh_file, target_polycount, topology, output_format):
+        args = {
+            "model_url": _upload_mesh_file(mesh_file),
+            "target_polycount": int(target_polycount),
+            "topology": topology,
+            "target_formats": [output_format],
+        }
+        return run_mesh("fal-ai/meshy/v5/remesh", args, "meshy_remesh", want_preview=False)
+
+
 class FalTripoSplat:
     """tripo3d/triposplat — one photo -> 3D Gaussian Splat, $0.05. The splat_3d output
     plugs straight into the core splat nodes: Get Splat -> Transform / Render / Extract
@@ -403,6 +483,8 @@ NODE_CLASS_MAPPINGS = {
     "FalHunyuanSketchTo3D": FalHunyuanSketchTo3D,
     "FalTrellisImageTo3D": FalTrellisImageTo3D,
     "FalTripoSplat": FalTripoSplat,
+    "FalSmartTopology": FalSmartTopology,
+    "FalMeshyRemesh": FalMeshyRemesh,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FalTripoImageTo3D": "FAL 3D — Tripo v2.5 ($0.20–0.45)",
@@ -412,4 +494,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalHunyuanSketchTo3D": "FAL 3D — Hunyuan Sketch→3D (prompt, $0.375+)",
     "FalTrellisImageTo3D": "FAL 3D — TRELLIS (fine control)",
     "FalTripoSplat": "FAL 3D — TripoSplat, Gaussian Splat ($0.05)",
+    "FalSmartTopology": "FAL 3D — Smart Topology retopo (Hunyuan, $0.75)",
+    "FalMeshyRemesh": "FAL 3D — Meshy v5 Remesh ($0.20)",
 }

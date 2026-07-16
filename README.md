@@ -43,6 +43,8 @@ Quantity column is credits, not generations.
 | FAL 3D — Hunyuan Sketch→3D | `fal-ai/hunyuan3d-v3/sketch-to-3d` | $0.375, +$0.15 PBR |
 | FAL 3D — TRELLIS | `fal-ai/trellis` | varies |
 | FAL 3D — TripoSplat (Gaussian Splat) | `tripo3d/triposplat` | $0.05 |
+| FAL 3D — Smart Topology retopo | `fal-ai/hunyuan-3d/v3.1/smart-topology` | $0.75, quads |
+| FAL 3D — Meshy v5 Remesh | `fal-ai/meshy/v5/remesh` | $0.20, polycount + fbx/obj/usdz conversion |
 
 TripoSplat outputs a `FILE_3D` (`splat_3d`) that plugs straight into ComfyUI's core splat
 nodes: **Get Splat → Transform / Render / Extract Mesh from Splat / Create 3D File →
