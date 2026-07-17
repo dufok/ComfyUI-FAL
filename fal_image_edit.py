@@ -83,19 +83,29 @@ class FalObjectRemoval:
 
 
 class FalBriaEraser:
-    """fal-ai/bria/eraser — precise mask-based removal, commercially licensed data. $0.04."""
+    """fal-ai/bria/eraser — precise mask-based removal, commercially licensed data. $0.04.
+    grow_mask dilates the painted mask before upload: erasers need margin around the
+    object (edge pixels, color bounce, shadow) or the border color bleeds back in."""
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"image": ("IMAGE",), "mask": ("MASK",)}}
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "grow_mask": ("INT", {"default": 15, "min": 0, "max": 100,
+                                      "tooltip": "Dilate the mask by N px — cover edge pixels and color bounce."}),
+            },
+        }
 
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
     CATEGORY = "FAL/Image Edit/Remove"
 
-    def run(self, image, mask):
-        args = {"image_url": upload_image(image), "mask_url": upload_mask(mask)}
+    def run(self, image, mask, grow_mask=15):
+        from .fal_common import grow_mask as _grow
+        args = {"image_url": upload_image(image), "mask_url": upload_mask(_grow(mask, grow_mask))}
         return (run_image("fal-ai/bria/eraser", args),)
 
 

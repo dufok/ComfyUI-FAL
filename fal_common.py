@@ -95,6 +95,15 @@ def upload_image_rgba(image, mask):
             pass
 
 
+def grow_mask(mask, pixels):
+    """Dilate a MASK tensor [B,H,W] by `pixels` (max-pool) — erasers need margin around
+    the object or edge colors bleed back into the reconstruction."""
+    if not pixels or pixels <= 0:
+        return mask
+    k = 2 * int(pixels) + 1
+    return torch.nn.functional.max_pool2d(mask.unsqueeze(1), k, stride=1, padding=int(pixels)).squeeze(1)
+
+
 def upload_mask(mask):
     """MASK tensor [B,H,W] (1 = area to edit) -> uploaded grayscale PNG URL (white = edit)."""
     if mask is None:
