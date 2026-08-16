@@ -190,16 +190,34 @@ then import it in `__init__.py`.
 ### Coexisting with gokayfem's pack
 
 If [gokayfem/ComfyUI-fal-API](https://github.com/gokayfem/ComfyUI-fal-API) is installed too
-(it often is, and in a container image it may not be editable), `fal_retag.py` tidies a few
-of its categories at startup: its three video upscalers move out of `FAL/Image` into
-`FAL/VideoGeneration/Upscale`, its file-upload helpers move out of ComfyUI's stock `video`
-menu into `FAL/Utils`, and its four Nano Banana nodes join ours under `FAL/Image/Banana`.
+(it often is, and in a container image it may not be editable), its 87 nodes sit directly in
+`FAL/Image` and `FAL/VideoGeneration`, interleaved with this pack's, and three of its helpers
+escape into ComfyUI's stock `video` menu. `fal_retag.py` moves that whole pack under one root
+at startup:
 
-This mutates `cls.CATEGORY` from an `app.on_startup` hook — ComfyUI reads the attribute
-lazily each time `/object_info` is served, so a late write is enough and no fork is needed.
-It only touches nodes it can prove belong to that pack and are still in their expected
-category, and every path is guarded: a failure here can never stop this pack's own nodes
-from loading. Delete the two `fal_retag` lines from `__init__.py` to opt out.
+| from | to |
+|---|---|
+| `FAL/Image` | `FAL/zz-gokayfem/Image` |
+| `FAL/VideoGeneration`, `.../DY` | `FAL/zz-gokayfem/Video` |
+| its 4 video upscalers | `FAL/zz-gokayfem/Video Upscale` |
+| its 4 Nano Banana nodes | `FAL/zz-gokayfem/Banana` |
+| `FAL/LLM`, `FAL/VLM` | `FAL/zz-gokayfem/Text` |
+| `FAL/Training` | `FAL/zz-gokayfem/Training` |
+| stock `video` (upload helpers) | `FAL/zz-gokayfem/Utils` |
+
+The `zz-` prefix sorts it to the bottom. It is deliberately *not* called "legacy" — that pack
+owns video, LoRA training and most text-to-image here, and none of it is deprecated.
+
+This mutates `cls.CATEGORY` from an `app.on_startup` hook. ComfyUI resolves a saved graph by
+its `class_type` (the `NODE_CLASS_MAPPINGS` key) and re-reads `CATEGORY` off the class on
+every `/object_info` request — category is presentation, `class_type` is the contract — so
+retagging moves menu entries without touching a single saved workflow, and no fork is needed.
+
+The rules are keyed on category rather than a list of node ids, so a node added upstream still
+lands somewhere sensible. It only touches classes that prove they belong to that pack, skips
+V3-schema nodes whose `CATEGORY` is a read-only classproperty, and is idempotent. Every path is
+guarded: a failure here can never stop this pack's own nodes from loading. Delete the two
+`fal_retag` lines from `__init__.py` to opt out.
 
 ## Roadmap
 

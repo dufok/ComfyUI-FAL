@@ -1,15 +1,24 @@
 """Retag another pack's node categories once every pack has loaded.
 
 The container also ships gokayfem's ComfyUI-fal-API, baked into the docker image (root-owned,
-not a bind mount), so we cannot edit its files — they would come back on the next rebuild.
-But its categories are wrong in ways that make the FAL menu hard to use: three video nodes
-sit under FAL/Image, and its four Nano Banana nodes are scattered among 30 unrelated ones.
+not a bind mount), so we cannot edit its files — they would come back on the next rebuild. Its
+87 nodes are useful (they own video, LoRA training and most text-to-image) but they sit directly
+in `FAL/Image` and `FAL/VideoGeneration`, interleaved with ours, and three helpers escape into
+ComfyUI's stock `video` menu. That makes the FAL tree hard to read.
 
-ComfyUI reads `cls.CATEGORY` off the class every time /object_info is served, so mutating the
-attribute late is enough — no fork, no rebuild. The catch is ordering: custom_nodes are walked
-with an unsorted os.listdir, so gokayfem's classes may not exist when this module is imported.
-We therefore defer to aiohttp's on_startup, which fires after init_extra_nodes() and before the
-first request.
+So we move the whole pack under a single `FAL/zz-gokayfem/` root: it sorts to the bottom, it
+groups, and — unlike a name such as "legacy" — it does not claim the nodes are deprecated. They
+are not: that pack is an active complement, and it is the only source of video in this install.
+
+Why this is safe: ComfyUI resolves a saved graph by the NODE_CLASS_MAPPINGS key (`class_type`),
+and re-reads `cls.CATEGORY` off the class on every /object_info request. Category is presentation;
+class_type is the contract. So retagging moves menu entries without touching a single saved
+workflow — including the graphs the Comfyder Blender add-ons POST to /prompt with pack-B
+class names hardcoded.
+
+Ordering: custom_nodes are walked with an unsorted os.listdir, so gokayfem's classes may not
+exist yet when this module is imported. We defer to aiohttp's on_startup, which fires after
+init_extra_nodes() and before the first request.
 
 Two failure modes make the paranoia here load-bearing rather than decorative:
   * an exception escaping install() makes ComfyUI drop OUR ENTIRE PACK (load_custom_node
@@ -18,6 +27,8 @@ Two failure modes make the paranoia here load-bearing rather than decorative:
     (AppRunner.setup propagates it).
 Hence `except BaseException` in both, and sys.modules lookups instead of `import server`,
 which outside ComfyUI's exact import order drags in torch and can hard-fail.
+
+To opt out entirely, delete the two `fal_retag` lines from __init__.py.
 """
 
 import logging
@@ -26,52 +37,68 @@ import sys
 log = logging.getLogger(__name__)
 
 OWNER_MODULE = "custom_nodes.ComfyUI-fal-API"
+ROOT = "FAL/zz-gokayfem"
 
-# node id -> (category we expect to find, category we want)
-# The expected value is a guard: if gokayfem fixes these upstream, or renames something, we
-# leave it alone rather than fighting over it.
-RETAG = {
-    # video work filed under an image category
-    "Bria_Video_Increase_Resolution_fal": ("FAL/Image", "FAL/VideoGeneration/Upscale"),
-    "Seedvr_Upscale_Video_fal":           ("FAL/Image", "FAL/VideoGeneration/Upscale"),
-    "Topaz_Upscale_Video_fal":            ("FAL/Image", "FAL/VideoGeneration/Upscale"),
-    "VideoUpscaler_fal":                  ("FAL/VideoGeneration", "FAL/VideoGeneration/Upscale"),
-    # helpers that escaped into ComfyUI's stock "video" menu
-    "UploadVideo_fal":                    ("video", "FAL/Utils"),
-    "UploadFile_fal":                     ("video", "FAL/Utils"),
-    "LoadVideoURL":                       ("video", "FAL/Utils"),
-    # the Banana family, gathered next to ours
-    "NanoBanana2_fal":                    ("FAL/Image", "FAL/Image/Banana"),
-    "NanoBananaPro_fal":                  ("FAL/Image", "FAL/Image/Banana"),
-    "NanoBananaEdit_fal":                 ("FAL/Image", "FAL/Image/Banana"),
-    "NanoBananaTextToImage_fal":          ("FAL/Image", "FAL/Image/Banana"),
+# Source category -> where it goes. Keyed on the category the class declares in gokayfem's own
+# source, which is what we see at hook time. Rule-based rather than a list of 87 node ids, so a
+# node added upstream lands somewhere sensible instead of being silently left behind.
+CATEGORY_MAP = {
+    "FAL/Image": f"{ROOT}/Image",
+    "FAL/VideoGeneration": f"{ROOT}/Video",
+    "FAL/VideoGeneration/DY": f"{ROOT}/Video",
+    "FAL/Training": f"{ROOT}/Training",
+    "FAL/LLM": f"{ROOT}/Text",
+    "FAL/VLM": f"{ROOT}/Text",
+    "video": f"{ROOT}/Utils",   # upload/download helpers that escaped into ComfyUI's own menu
 }
+
+# Per-node exceptions, applied before the category map.
+NODE_OVERRIDES = {
+    # Video upscalers gokayfem files under an image category.
+    "Bria_Video_Increase_Resolution_fal": f"{ROOT}/Video Upscale",
+    "Seedvr_Upscale_Video_fal": f"{ROOT}/Video Upscale",
+    "Topaz_Upscale_Video_fal": f"{ROOT}/Video Upscale",
+    "VideoUpscaler_fal": f"{ROOT}/Video Upscale",
+    # The Nano Banana family. Ours supersede these on every axis (tier routing, seed,
+    # system_prompt, thinking_level, safety_tolerance, web search, and the model's own
+    # description as a second output), so they belong at the bottom rather than sitting
+    # in FAL/Image/Banana next to ours, where they would read as equal alternatives.
+    "NanoBanana2_fal": f"{ROOT}/Banana",
+    "NanoBananaPro_fal": f"{ROOT}/Banana",
+    "NanoBananaEdit_fal": f"{ROOT}/Banana",
+    "NanoBananaTextToImage_fal": f"{ROOT}/Banana",
+}
+
+
+def _target(name, current):
+    """Where this node should end up, or None to leave it alone."""
+    if isinstance(current, str) and current.startswith(ROOT):
+        return None                      # already ours to begin with — idempotent
+    if name in NODE_OVERRIDES:
+        return NODE_OVERRIDES[name]
+    return CATEGORY_MAP.get(current)
 
 
 def apply_retag(mappings):
     changed, skipped = [], []
-    for name, (expected, new_cat) in RETAG.items():
+    for name, cls in list(mappings.items()):
         try:
-            cls = mappings.get(name)
-            if cls is None:
-                skipped.append((name, "absent"))
-                continue
-            owner = getattr(cls, "RELATIVE_PYTHON_MODULE", None)
-            if owner != OWNER_MODULE:
-                skipped.append((name, f"owned by {owner!r}, not ours to touch"))
+            # Only ever touch nodes that prove they belong to that pack.
+            if getattr(cls, "RELATIVE_PYTHON_MODULE", None) != OWNER_MODULE:
                 continue
             # V3-schema nodes expose CATEGORY as a @final classproperty and /object_info
-            # short-circuits to GET_NODE_INFO_V1(), so the write would succeed and be
-            # silently ignored. Skip with a reason instead of pretending it worked.
+            # short-circuits to GET_NODE_INFO_V1(), so the write would succeed and be silently
+            # ignored. Skip with a reason instead of pretending it worked.
             if hasattr(cls, "GET_NODE_INFO_V1"):
                 skipped.append((name, "V3 schema node, CATEGORY write is a no-op"))
                 continue
-            cur = getattr(cls, "CATEGORY", None)
-            if cur != expected:
-                skipped.append((name, f"category is {cur!r}, expected {expected!r}"))
+            current = getattr(cls, "CATEGORY", None)
+            new_cat = _target(name, current)
+            if new_cat is None:
+                skipped.append((name, f"no rule for category {current!r}"))
                 continue
             cls.CATEGORY = new_cat
-            changed.append((name, cur, new_cat))
+            changed.append((name, current, new_cat))
         except BaseException as e:  # noqa: BLE001 — must never escape
             skipped.append((name, f"error: {e!r}"))
     return changed, skipped
@@ -94,10 +121,14 @@ def install():
         async def _retag(_app):
             try:
                 changed, skipped = apply_retag(nodes_mod.NODE_CLASS_MAPPINGS)
+                buckets = {}
+                for _, _, new in changed:
+                    buckets[new] = buckets.get(new, 0) + 1
                 if changed:
-                    log.info("[ComfyUI-FAL] retagged %d foreign node(s)", len(changed))
-                for n, old, new in changed:
-                    log.info("[ComfyUI-FAL]   %s: %s -> %s", n, old, new)
+                    log.info("[ComfyUI-FAL] retagged %d node(s) of %s into %s/",
+                             len(changed), OWNER_MODULE, ROOT)
+                    for cat in sorted(buckets):
+                        log.info("[ComfyUI-FAL]   %-32s %d", cat, buckets[cat])
                 for n, why in skipped:
                     log.debug("[ComfyUI-FAL] retag skip %s (%s)", n, why)
             except BaseException:  # noqa: BLE001 — raising here stops the server booting
