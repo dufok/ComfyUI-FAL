@@ -120,7 +120,8 @@ def install():
 
         async def _retag(_app):
             try:
-                changed, skipped = apply_retag(nodes_mod.NODE_CLASS_MAPPINGS)
+                mappings = nodes_mod.NODE_CLASS_MAPPINGS
+                changed, skipped = apply_retag(mappings)
                 buckets = {}
                 for _, _, new in changed:
                     buckets[new] = buckets.get(new, 0) + 1
@@ -129,6 +130,15 @@ def install():
                              len(changed), OWNER_MODULE, ROOT)
                     for cat in sorted(buckets):
                         log.info("[ComfyUI-FAL]   %-32s %d", cat, buckets[cat])
+                elif not any(getattr(c, "RELATIVE_PYTHON_MODULE", None) == OWNER_MODULE
+                             for c in mappings.values()):
+                    # Not an error on its own — the pack may simply not be installed. But when
+                    # it IS expected, this is the only early warning that it failed to import:
+                    # ComfyUI logs that as a WARNING and carries on, so ~87 nodes vanish
+                    # silently and anything driving them by class_type breaks at request time.
+                    log.warning("[ComfyUI-FAL] %s registered NO nodes — if it is installed, it "
+                                "failed to import; check the startup log above for its traceback",
+                                OWNER_MODULE)
                 for n, why in skipped:
                     log.debug("[ComfyUI-FAL] retag skip %s (%s)", n, why)
             except BaseException:  # noqa: BLE001 — raising here stops the server booting
