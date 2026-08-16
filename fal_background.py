@@ -97,6 +97,6 @@ NODE_CLASS_MAPPINGS = {
     "FalBriaBackgroundReplace": FalBriaBackgroundReplace,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FalBriaBackgroundRemove": "FAL Background — Bria Remove (RMBG 2.0)",
-    "FalBriaBackgroundReplace": "FAL Background — Bria Replace",
+    "FalBriaBackgroundRemove": "FAL Background — Bria Remove, RMBG 2.0 ($0.018)",
+    "FalBriaBackgroundReplace": "FAL Background — Bria Replace ($0.04)",
 }

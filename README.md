@@ -33,30 +33,86 @@ in-graph 3D view, or open `download_url` in a browser to grab the file for Blend
 
 | Node | Endpoint | ~Cost |
 |---|---|---|
+| FAL 3D — Meshy v7 (rig + anim) | `meshy/v7/image-to-3d`, `meshy/v7/multi-image-to-3d` | $0.80 bare / $1.20 textured / $1.40 ultra, +$0.20 rig, +$0.12 anim |
 | FAL 3D — Tripo v2.5 | `tripo3d/tripo/v2.5/image-to-3d` | $0.20 bare / $0.30 std / $0.40 HD texture, +$0.05 quad |
 | FAL 3D — Tripo H3.1 (quality dial) | `tripo3d/h3.1/image-to-3d` | $0.20–0.40 base, +$0.20 detailed geometry, +$0.05 quad |
+| FAL 3D — Hunyuan3D v2 | `fal-ai/hunyuan3d/v2` | $0.16 white / $0.48 textured |
+| FAL 3D — Hunyuan3D v3.1 pro/rapid | `fal-ai/hunyuan-3d/v3.1/...` | pro $0.375 / rapid $0.225, +$0.15 each: PBR, multiview, custom face count |
+| FAL 3D — Hunyuan Sketch→3D | `fal-ai/hunyuan3d-v3/sketch-to-3d` | $0.375, +$0.15 PBR |
+| FAL 3D — TRELLIS | `fal-ai/trellis` | $0.02 |
+| FAL 3D — TripoSplat (Gaussian Splat) | `tripo3d/triposplat` | $0.05 |
 
 Tripo endpoints bill in **Tripo credits** (1 credit = $0.01) — on the FAL usage page the
 Quantity column is credits, not generations.
-| FAL 3D — Hunyuan3D v2 | `fal-ai/hunyuan3d/v2` | ~$0.16 white / ~$0.48 textured |
-| FAL 3D — Hunyuan3D v3.1 pro/rapid | `fal-ai/hunyuan-3d/v3.1/...` | pro $0.375 / rapid $0.225, +$0.15 each: PBR, multiview, custom face count |
-| FAL 3D — Hunyuan Sketch→3D | `fal-ai/hunyuan3d-v3/sketch-to-3d` | $0.375, +$0.15 PBR |
-| FAL 3D — TRELLIS | `fal-ai/trellis` | varies |
-| FAL 3D — TripoSplat (Gaussian Splat) | `tripo3d/triposplat` | $0.05 |
-| FAL 3D — Smart Topology retopo | `fal-ai/hunyuan-3d/v3.1/smart-topology` | $0.75, quads |
-| FAL 3D — Meshy v5 Remesh | `fal-ai/meshy/v5/remesh` | $0.20, polycount + fbx/obj/usdz conversion |
+
+**Meshy v7** is the one call that does everything: geometry, PBR textures, game-ready quad
+topology at a target polycount, humanoid auto-rigging and an animation clip. Note that GLB
+cannot store quads — with `topology=quad` the `.glb` comes back triangulated and the real
+quads live only in the `fbx`/`obj`/`blend` export, which is what the `extra_format` widget
+fetches from the same billed job.
 
 TripoSplat outputs a `FILE_3D` (`splat_3d`) that plugs straight into ComfyUI's core splat
 nodes: **Get Splat → Transform / Render / Extract Mesh from Splat / Create 3D File →
 Save 3D Model** (interactive viewer). The `.ply` also lands in `output/`.
 
+#### Mesh in, mesh out
+Wire a `glb_file` output into `mesh_file`.
+
+| Node | Endpoint | ~Cost | What it's for |
+|---|---|---|---|
+| FAL 3D — Tripo Remesh | `tripo3d/tripo/remesh` | $0.01 | **The default retopo.** Real quads, bakes textures, returns a preview render. Caps at 20k faces (10k quad) — a game-asset/LOD decimator. |
+| FAL 3D — Tripo Segment | `tripo3d/tripo/segment` | $0.01 | Split into named semantic parts. Feed `part_names` into Remesh to keep them separate — the pair costs $0.02. |
+| FAL 3D — Meshy v5 Remesh | `fal-ai/meshy/v5/remesh` | $0.20 | The high-poly path: up to 300k faces, `.blend`/`.usdz` export, rescale + origin. |
+| FAL 3D — Smart Topology | `fal-ai/hunyuan-3d/v3.1/smart-topology` | $0.75 | glb/obj in, mixed quad/tri out. |
+| FAL 3D — Meshy Rigging | `fal-ai/meshy/rigging` | $0.20, +$0.12 anim | Rig **any** humanoid GLB, not only one Meshy just made — so a $0.20 Tripo mesh rigs for $0.40 total instead of $1.40 through a v7 generation. Under 300k faces, textured. |
+
+### `FAL/Image/Material` — PATINA, PBR maps
+
+Photo or prompt → `basecolor`, `normal`, `roughness`, `metalness`, `height` as separate
+named IMAGE outputs.
+
+| Node | Endpoint | ~Cost | Input |
+|---|---|---|---|
+| FAL Material — PATINA image→PBR maps | `fal-ai/patina` | $0.01 + $0.01/MP per map (1K, 5 maps = **$0.06**) | a photo or render → its five maps |
+| FAL Material — PATINA prompt→tiling material | `fal-ai/patina/material` | $0.01 + $0.02/MP + $0.01/MP per map (1K, 5 maps = **$0.08**) | text → a seamlessly tiling material (optionally seeded from an image, or inpainted with a mask) |
+| FAL Material — PATINA extract from photo | `fal-ai/patina/material/extract` | $0.10 + $0.02/MP + $0.01/MP per map (1K, 5 maps = **$0.17**) | photo + "the wall" → that material lifted out as a seamless tile |
+
+Each map is billed separately, so the five booleans are a real cost dial — and on the two
+tiling nodes turning all of them off is legal and means "texture only, skip the PBR pass".
+Maps are matched by the response's `map_type` field rather than by position, because the
+API's own examples return them in inconsistent orders. `upscale_factor` enlarges the maps
+but **not** the base texture, which is why every map is its own output rather than a batch.
+
+### `FAL/Image/Banana` — Nano Banana / Gemini
+
+FAL lists this family under fifteen endpoint ids, but they are four models: the `gemini-*`
+ids are identical aliases of the `nano-banana-*` ids, same fields and same price. So each
+node takes a **tier** instead:
+
+| Tier | Endpoint | Price | Extras |
+|---|---|---|---|
+| `pro` | `fal-ai/nano-banana-pro` | $0.15/img, 4K ×2 | 1K/2K/4K, system prompt, web search |
+| `banana-2` | `fal-ai/nano-banana-2` | $0.08/img @1K | 0.5K ×0.75, 2K ×1.5, 4K ×2, thinking, system prompt, web search, extreme ratios |
+| `lite` | `google/nano-banana-2-lite` | token-billed, fixed 1K | sub-2s, thinking, system prompt |
+| `legacy` | `fal-ai/nano-banana` | $0.039/img | cheapest |
+
+| Node | What it does |
+|---|---|
+| FAL Banana — Generate | text → image, any tier |
+| FAL Banana — Edit | image(s) → image, any tier; batch + `image_2/3/4` all become references |
+| FAL Banana — Context | `nano-banana-2/edit` with **`pdf_url` / `video_url` / `audio_url`** — generate from a document or a video (a plain YouTube link works), no local download |
+
+All three also return the model's own `description`, which is where `thinking_level` output
+surfaces. `use_gemini_ids` switches to the Gemini-branded id of the same model if a workflow
+needs to pin it.
+
 ### `FAL/Background` — Bria
 | Node | Endpoint | Output | ~Cost |
 |---|---|---|---|
-| FAL Background — Bria Remove | `fal-ai/bria/background/remove` | IMAGE + MASK | ~$0.018 |
-| FAL Background — Bria Replace | `fal-ai/bria/background/replace` | IMAGE(s) | varies |
+| FAL Background — Bria Remove | `fal-ai/bria/background/remove` | IMAGE + MASK | $0.018 |
+| FAL Background — Bria Replace | `fal-ai/bria/background/replace` | IMAGE(s) | $0.04 |
 
-### `FAL/Image Edit` — remove / inpaint / edit / upscale / expand
+### `FAL/Image` — remove / inpaint / edit / upscale / expand / vector / finish
 
 One bar for everyday photo work, newest model per task. Masks follow ComfyUI convention
 (MASK 1.0 = the area to remove/inpaint).
@@ -72,12 +128,11 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | FAL Inpaint — Bria GenFill v2 | `bria/genfill/v2` | mask + instruction | $0.04/MP |
 | FAL Edit — Qwen Image Edit 2511 (newest) | `fal-ai/qwen-image-edit-2511` | prompt, multi-ref | $0.03/MP |
 | FAL Edit — Seedream v5-pro / v5-lite / v4.5 | `bytedance/seedream/v5/...`, `fal-ai/bytedance/seedream/v4.5/edit` | prompt, up to 10 refs; v5-pro is region-precise + sketch completion | $0.04–0.14 |
-| FAL Edit — Gemini Flash 3.1 / 2.5 | `fal-ai/gemini-3.1-flash-image-preview/edit`, `fal-ai/gemini-25-flash-image/edit` | prompt, multi-ref, up to 4K (3.1) | $0.04–0.08 |
-| FAL Upscale — SeedVR v2 | `fal-ai/seedvr/upscale/image` | factor or target res | varies |
-| FAL Upscale — Topaz | `fal-ai/topaz/upscale/image` | 11 models, face enhance | varies |
-| FAL Upscale — Recraft Crisp | `fal-ai/recraft/upscale/crisp` | image only | cheap |
-| FAL Upscale — Clarity | `fal-ai/clarity-upscaler` | creativity/resemblance | varies |
-| FAL Expand — Bria Outpaint | `fal-ai/bria/expand` | canvas size (+prompt) | varies |
+| FAL Upscale — SeedVR v2 | `fal-ai/seedvr/upscale/image` | factor or target res | $0.001/MP |
+| FAL Upscale — Topaz | `fal-ai/topaz/upscale/image` | 11 models, face enhance | $0.08 (≤24MP) – $1.36 |
+| FAL Upscale — Recraft Crisp | `fal-ai/recraft/upscale/crisp` | image only | $0.004 |
+| FAL Upscale — Clarity | `fal-ai/clarity-upscaler` | creativity/resemblance | $0.03/MP |
+| FAL Expand — Bria Outpaint | `fal-ai/bria/expand` | canvas size (+prompt) | $0.04 |
 | FAL Vector — Recraft Vectorize | `fal-ai/recraft/vectorize` | image → SVG (AI, zero-config) | $0.01 |
 | FAL Vector — Image2SVG tracer | `fal-ai/image2svg` | image → SVG (vtracer knobs) | $0.005 |
 | FAL Finish — Film Grain | `fal-ai/post-processing/grain` | 6 film stocks | $0.001 |
@@ -118,16 +173,33 @@ Reads `FAL_KEY` from the environment — no `config.ini`. Get a key at
 ## Layout
 
 ```
-__init__.py        merges each module's NODE_CLASS_MAPPINGS
+__init__.py        merges each module's NODE_CLASS_MAPPINGS, installs the retag hook
 fal_common.py      shared helpers (upload, result parsing, file save, mesh runner)
-fal_3d.py          FAL/3D nodes
+fal_3d.py          FAL/3D nodes — generation, retopo, segmentation, rigging
 fal_background.py  FAL/Background nodes (Bria)
-fal_image_edit.py  FAL/Image Edit nodes (remove / inpaint / edit / upscale / expand)
+fal_image_edit.py  FAL/Image/{Remove,Inpaint,Edit,Upscale,Expand,Vector,Finish}
+fal_material.py    FAL/Image/Material — PATINA PBR maps
+fal_banana.py      FAL/Image/Banana — Nano Banana / Gemini
+fal_retag.py       tidies the co-installed gokayfem pack's categories (see below)
 fal_registry.py    catalog list / search / schema / diff
 ```
 
 Adding a category = a new `fal_<x>.py` exposing `NODE_CLASS_MAPPINGS` + display names,
 then import it in `__init__.py`.
+
+### Coexisting with gokayfem's pack
+
+If [gokayfem/ComfyUI-fal-API](https://github.com/gokayfem/ComfyUI-fal-API) is installed too
+(it often is, and in a container image it may not be editable), `fal_retag.py` tidies a few
+of its categories at startup: its three video upscalers move out of `FAL/Image` into
+`FAL/VideoGeneration/Upscale`, its file-upload helpers move out of ComfyUI's stock `video`
+menu into `FAL/Utils`, and its four Nano Banana nodes join ours under `FAL/Image/Banana`.
+
+This mutates `cls.CATEGORY` from an `app.on_startup` hook — ComfyUI reads the attribute
+lazily each time `/object_info` is served, so a late write is enough and no fork is needed.
+It only touches nodes it can prove belong to that pack and are still in their expected
+category, and every path is guarded: a failure here can never stop this pack's own nodes
+from loading. Delete the two `fal_retag` lines from `__init__.py` to opt out.
 
 ## Roadmap
 

@@ -1,5 +1,5 @@
 """
-FAL image-editing nodes (category: FAL/Image Edit).
+FAL image-editing nodes (category: FAL/Image/<shelf>).
 
 One bar for everyday photo work — the newest FAL models per task, cheapest-first:
 
@@ -65,7 +65,7 @@ class FalObjectRemoval:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Remove"
+    CATEGORY = "FAL/Image/Remove"
 
     def run(self, image, prompt, quality, mask_expansion, mask=None):
         args = {
@@ -101,7 +101,7 @@ class FalBriaEraser:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Remove"
+    CATEGORY = "FAL/Image/Remove"
 
     def run(self, image, mask, grow_mask=15):
         from .fal_common import grow_mask as _grow
@@ -125,7 +125,7 @@ class FalFluxProErase:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Remove"
+    CATEGORY = "FAL/Image/Remove"
 
     def run(self, image, mask, dilate_pixels):
         args = {
@@ -158,7 +158,7 @@ class FalFinegrainEraser:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Remove"
+    CATEGORY = "FAL/Image/Remove"
 
     def run(self, image, prompt, mode, seed=0):
         if not prompt.strip():
@@ -193,7 +193,7 @@ class FalZImageTurboInpaint:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Inpaint"
+    CATEGORY = "FAL/Image/Inpaint"
 
     def run(self, image, mask, prompt, strength, num_inference_steps, acceleration,
             num_images=1, seed=0):
@@ -235,7 +235,7 @@ class FalQwenImageEditInpaint:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Inpaint"
+    CATEGORY = "FAL/Image/Inpaint"
 
     def run(self, image, mask, prompt, strength, guidance_scale, num_inference_steps,
             negative_prompt="", num_images=1, seed=0):
@@ -273,7 +273,7 @@ class FalBriaGenFill:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Inpaint"
+    CATEGORY = "FAL/Image/Inpaint"
 
     def run(self, image, mask, instruction, steps_num, seed):
         if not instruction.strip():
@@ -316,7 +316,7 @@ class FalQwenImageEdit2511:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Edit"
+    CATEGORY = "FAL/Image/Edit"
 
     def run(self, image, prompt, guidance_scale, num_inference_steps, acceleration,
             image_2=None, image_3=None, negative_prompt="", num_images=1, seed=0):
@@ -371,7 +371,7 @@ class FalSeedreamEdit:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Edit"
+    CATEGORY = "FAL/Image/Edit"
 
     def run(self, image, prompt, version, image_2=None, image_3=None, image_4=None,
             num_images=1, seed=0):
@@ -422,7 +422,7 @@ class FalGeminiFlashEdit:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Edit"
+    CATEGORY = "FAL/Image/Banana"
 
     def run(self, image, prompt, version, resolution, image_2=None, image_3=None,
             system_prompt="", num_images=1, seed=0):
@@ -468,7 +468,7 @@ class FalSeedVRUpscale:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Upscale"
+    CATEGORY = "FAL/Image/Upscale"
 
     def run(self, image, upscale_mode, upscale_factor, target_resolution, noise_scale, seed=0):
         args = {
@@ -505,7 +505,7 @@ class FalTopazUpscale:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Upscale"
+    CATEGORY = "FAL/Image/Upscale"
 
     def run(self, image, model, upscale_factor, face_enhancement, subject_detection):
         args = {
@@ -529,7 +529,7 @@ class FalRecraftCrispUpscale:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Upscale"
+    CATEGORY = "FAL/Image/Upscale"
 
     def run(self, image):
         return (run_image("fal-ai/recraft/upscale/crisp", {"image_url": upload_image(image)}),)
@@ -557,7 +557,7 @@ class FalClarityUpscaler:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Upscale"
+    CATEGORY = "FAL/Image/Upscale"
 
     def run(self, image, upscale_factor, creativity, resemblance,
             prompt="masterpiece, best quality, highres", seed=0):
@@ -597,7 +597,7 @@ class FalBriaExpand:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Expand"
+    CATEGORY = "FAL/Image/Expand"
 
     def run(self, image, canvas_width, canvas_height, prompt="", offset_x=0, offset_y=0, seed=0):
         h, w = int(image.shape[1]), int(image.shape[2])
@@ -652,7 +652,7 @@ class FalGrain:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Finish"
+    CATEGORY = "FAL/Image/Finish"
 
     def run(self, image, grain_style, grain_intensity, grain_scale):
         extra = {
@@ -678,7 +678,7 @@ class FalVignette:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Finish"
+    CATEGORY = "FAL/Image/Finish"
 
     def run(self, image, vignette_strength):
         return _run_finish("fal-ai/post-processing/vignette", image,
@@ -705,7 +705,7 @@ class FalColorCorrection:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Finish"
+    CATEGORY = "FAL/Image/Finish"
 
     def run(self, image, temperature, contrast, saturation, brightness, gamma):
         extra = {
@@ -736,7 +736,7 @@ class FalSharpen:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Finish"
+    CATEGORY = "FAL/Image/Finish"
 
     def run(self, image, sharpen_mode, sharpen_radius, sharpen_alpha, cas_amount):
         extra = {
@@ -780,7 +780,7 @@ class FalRecraftVectorize:
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = ("svg_file", "download_url", "info")
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Vector"
+    CATEGORY = "FAL/Image/Vector"
     OUTPUT_NODE = True
 
     def run(self, image):
@@ -815,7 +815,7 @@ class FalImage2SVG:
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = ("svg_file", "download_url", "info")
     FUNCTION = "run"
-    CATEGORY = "FAL/Image Edit/Vector"
+    CATEGORY = "FAL/Image/Vector"
     OUTPUT_NODE = True
 
     def run(self, image, colormode, color_precision, filter_speckle, mode,
@@ -866,16 +866,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalFluxProErase": "FAL Remove — Flux Pro v1 Erase (mask, ~$0.03/MP)",
     "FalFinegrainEraser": "FAL Remove — Finegrain Eraser (prompt+shadows, $0.18+)",
     "FalZImageTurboInpaint": "FAL Inpaint — Z-Image Turbo ($0.01/MP)",
-    "FalQwenImageEditInpaint": "FAL Inpaint — Qwen Image Edit v1 (mask, 2511 has none)",
+    "FalQwenImageEditInpaint": "FAL Inpaint — Qwen Image Edit v1 (mask, $0.03/MP)",
     "FalBriaGenFill": "FAL Inpaint — Bria GenFill v2 ($0.04/MP)",
     "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511, newest ($0.03/MP)",
     "FalSeedreamEdit": "FAL Edit — Seedream v5-pro / v5-lite / v4.5 ($0.04–0.14)",
-    "FalGeminiFlashEdit": "FAL Edit — Gemini Flash 3.1 / 2.5 (Google, $0.04–0.08)",
-    "FalSeedVRUpscale": "FAL Upscale — SeedVR v2",
-    "FalTopazUpscale": "FAL Upscale — Topaz (model in dropdown)",
-    "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp",
-    "FalClarityUpscaler": "FAL Upscale — Clarity (creative)",
-    "FalBriaExpand": "FAL Expand — Bria Outpaint",
+    "FalGeminiFlashEdit": "FAL Banana — Gemini Flash 3.1 / 2.5, older node ($0.039–0.08)",
+    "FalSeedVRUpscale": "FAL Upscale — SeedVR v2 ($0.001/MP)",
+    "FalTopazUpscale": "FAL Upscale — Topaz, model in dropdown ($0.08–1.36)",
+    "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp ($0.004)",
+    "FalClarityUpscaler": "FAL Upscale — Clarity, creative ($0.03/MP)",
+    "FalBriaExpand": "FAL Expand — Bria Outpaint ($0.04)",
     "FalRecraftVectorize": "FAL Vector — Recraft Vectorize ($0.01)",
     "FalImage2SVG": "FAL Vector — Image2SVG tracer ($0.005)",
     "FalGrain": "FAL Finish — Film Grain ($0.001)",

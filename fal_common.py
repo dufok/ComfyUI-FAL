@@ -226,6 +226,23 @@ def run_image(endpoint, arguments):
     return images_from_result(result)
 
 
+def run_image_described(endpoint, arguments):
+    """Like run_image, but also returns the model's own `description` string.
+
+    The Gemini / Nano Banana family always returns `description` alongside `images` —
+    it is where the model explains what it did, and where `thinking_level` output
+    surfaces. Every other wrapper throws it away; here it becomes a STRING output.
+    """
+    require_key()
+    printable = {k: (f"<{len(v)} urls>" if k == "image_urls" else v) for k, v in arguments.items()}
+    print(f"[FAL] {endpoint} <- {printable}")
+    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    description = result.get("description") if isinstance(result, dict) else None
+    if description:
+        print(f"[FAL] description: {description}")
+    return images_from_result(result), (description or "")
+
+
 # --------------------------------------------------------------------------- files (meshes etc.)
 
 def public_download_url(fname):
@@ -234,9 +251,23 @@ def public_download_url(fname):
     return f"{public}{tail}" if public else tail
 
 
+def file_url(node):
+    """FAL returns files as {"url": ..., "content_type": ...} — or occasionally a bare
+    string. Normalise either into a URL (None if there is nothing usable)."""
+    if isinstance(node, dict):
+        url = node.get("url")
+        return url if isinstance(url, str) else None
+    return node if isinstance(node, str) and node.startswith("http") else None
+
+
 def mesh_url(result):
-    """Locate the .glb / mesh URL across the various FAL 3D output shapes."""
-    for key in ("model_mesh", "model_glb_pbr", "model_glb"):
+    """Locate the .glb / mesh URL across the various FAL 3D output shapes.
+
+    `rigged_character_glb` is here for the standalone rigging endpoint, whose output
+    carries none of the usual mesh keys — without it the generic deep_find fallback
+    would return whichever "url" happened to serialize first (often a walk-cycle clip).
+    """
+    for key in ("model_mesh", "model_glb_pbr", "model_glb", "rigged_character_glb"):
         node = result.get(key) if isinstance(result, dict) else None
         if isinstance(node, dict) and node.get("url"):
             return node["url"]
@@ -256,7 +287,8 @@ def save_file(url, prefix):
     """
     clean = url.split("?")[0]
     ext = clean.rsplit(".", 1)[-1].lower()
-    if ext not in ("glb", "gltf", "fbx", "zip", "png", "jpg", "jpeg", "webp", "svg", "ply", "splat", "spz"):
+    if ext not in ("glb", "gltf", "fbx", "obj", "mtl", "usdz", "blend", "stl", "zip",
+                   "png", "jpg", "jpeg", "webp", "svg", "exr", "ply", "splat", "spz"):
         ext = "glb"
     base = os.path.basename(clean) or f"{prefix}.{ext}"
     fname = f"{prefix}_{base}"
