@@ -26,6 +26,11 @@ Where this sits next to what the pack already has:
     doing it. Deblur BEFORE upscaling: enlarging a soft photo just produces a large soft photo.
   * FAL Background — Bria Remove AFTER restoring, not before: cutting out a blurry edge gives a
     ragged alpha.
+
+Size ceiling, measured rather than documented: FAL rejects an input with either side above
+3981px (`image_too_large`). 3840x2160 passes, 4096x4096 does not — so "4K" is fine in the video
+sense and one pixel too wide in the texture sense. It is not a megapixel or file-size limit; the
+4096 square that failed was only a 7 MB PNG. The NAFNet node checks this before uploading.
 """
 import json
 
@@ -37,6 +42,23 @@ from .fal_common import (
     run_image,
     upload_image,
 )
+
+
+# FAL's input validator rejects either side above this, with image_too_large. It is not a
+# megapixel or file-size cap: 3840x2160 (8.3 MP) passes, 4096x4096 (16.8 MP, a 7 MB PNG)
+# does not. Measured, because neither the OpenAPI schema nor the model page documents it.
+MAX_DIMENSION = 3981
+
+
+def _check_max_dimension(w, h):
+    if max(w, h) <= MAX_DIMENSION:
+        return
+    scale = MAX_DIMENSION / max(w, h)
+    raise RuntimeError(
+        f"image is {w}x{h}; FAL rejects either side above {MAX_DIMENSION}px. "
+        f"Resize to about {int(w * scale)}x{int(h * scale)} first — or work at half size and "
+        f"enlarge afterwards with FAL Restore — DRCT 4x, which is both cheaper and sharper "
+        f"than restoring at full resolution.")
 
 
 class FalNafnetRestore:
@@ -79,6 +101,7 @@ class FalNafnetRestore:
         # same template also stamped "URL of image to be used for relighting" onto image_url
         # here). Not exposed, and not sent.
         h, w = int(image.shape[1]), int(image.shape[2])
+        _check_max_dimension(w, h)
         out = run_image(self.ENDPOINTS[mode], {"image_url": upload_image(image)})
         oh, ow = int(out.shape[1]), int(out.shape[2])
         if (oh, ow) != (h, w):
