@@ -119,6 +119,32 @@ follows your geometry, which is what makes it the node to drive from Blender.
 Billing rounds up per megapixel: 1536×864 is 1.33 MP and costs **$0.15**, not $0.075. Only a
 render at or under 1 MP gets the single-megapixel rate.
 
+### `FAL/Image/Restore` — recover what was photographed
+
+| Node | Endpoint | ~Cost | |
+|---|---|---|---|
+| FAL Restore — NAFNet deblur / denoise | `fal-ai/nafnet/deblur`, `/denoise` | $0.0225/MP | **non-generative** |
+| FAL Restore — DRCT 4x | `fal-ai/drct-super-resolution` | $0.0045/MP | **non-generative**, fixed 4x |
+| FAL Restore — Bria FIBO | `bria/fibo-edit/restore` | $0.04 | one button, diffusion underneath |
+| FAL Restore — DDColor | `fal-ai/ddcolor` | $0.001/MP | colourise B&W |
+
+The distinction this shelf exists for: a **restoration** model recovers detail still physically
+present in the file; a **generative** one invents plausible detail. For a reference photo heading
+into a texture or a product shot you want the first — an invented leaf vein is worse than a soft
+one, because it looks right and is wrong.
+
+The catalogue makes that easy to check, and it is worth rechecking before adding anything here: a
+genuine restoration endpoint takes one image and at most a scale or task selector. Anything
+exposing `prompt`, `guidance_scale`, `num_inference_steps` or a `creativity` knob redraws. Two FAL
+endpoints are literally named "photo-restoration" and fail that test — `image-editing/photo-restoration`
+carries guidance 3.5 and 30 inference steps, and `image-apps-v2/photo-restoration` force-renders to
+4K in one of five aspect ratios and cannot return your frame. Neither is wrapped here, on purpose.
+
+**Order of operations** for cleaning a reference photo: denoise → deblur → enlarge → cut out.
+Enlarging a soft photo just gives a large soft photo, and cutting out a soft edge gives a ragged
+alpha. Try the $0.001 `FAL Finish — Sharpen` first if the photo is only nearly-good — it raises
+edge contrast, which is not the same as undoing blur, but it is 20x cheaper.
+
 ### `FAL/Text` — vision and language
 
 | Node | Endpoint | Billing |
@@ -206,6 +232,7 @@ fal_image_edit.py  FAL/Image/{Remove,Inpaint,Edit,Upscale,Expand,Vector,Finish}
 fal_material.py    FAL/Image/Material — PATINA PBR maps
 fal_banana.py      FAL/Image/Banana — Nano Banana / Gemini
 fal_generate.py    FAL/Image/Generate — Flux General (ControlNet / LoRA / IP-Adapter)
+fal_restore.py     FAL/Image/Restore — NAFNet, DRCT, Bria FIBO, DDColor
 fal_text.py        FAL/Text — VLM and LLM over OpenRouter
 fal_retag.py       tidies the co-installed gokayfem pack's categories (see below)
 fal_registry.py    catalog list / search / schema / diff

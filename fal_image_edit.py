@@ -599,7 +599,12 @@ class FalGeminiFlashEdit:
 # ============================================================================ Upscale
 
 class FalSeedVRUpscale:
-    """fal-ai/seedvr/upscale/image — SeedVR2, strong generative photo upscaler."""
+    """fal-ai/seedvr/upscale/image — SeedVR2, strong generative photo upscaler.
+
+    `seamless` switches to the /seamless variant, the only endpoint on FAL that upscales a
+    tiling texture and keeps the tile edges matching afterwards. It is still generative — it
+    invents detail on the way up — so for a reference photo that must stay faithful use
+    FAL Restore — DRCT instead."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -612,6 +617,8 @@ class FalSeedVRUpscale:
                 "noise_scale": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
             },
             "optional": {
+                "seamless": ("BOOLEAN", {"default": False,
+                             "tooltip": "Keep a tiling texture tiling after the upscale ($0.0025/MP)."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
             },
         }
@@ -621,18 +628,23 @@ class FalSeedVRUpscale:
     FUNCTION = "run"
     CATEGORY = "FAL/Image/Upscale"
 
-    def run(self, image, upscale_mode, upscale_factor, target_resolution, noise_scale, seed=0):
+    def run(self, image, upscale_mode, upscale_factor, target_resolution, noise_scale,
+            seamless=False, seed=0):
         args = {
             "image_url": upload_image(image),
             "upscale_mode": upscale_mode,
             "noise_scale": float(noise_scale),
+            # "png" is the one format valid on BOTH variants — the plain endpoint's enum has
+            # "jpg" where the seamless one has "jpeg", so never promote this to a widget.
             "output_format": "png",
         }
         if upscale_mode == "factor":
             args["upscale_factor"] = float(upscale_factor)
         else:
             args["target_resolution"] = target_resolution
-        return (run_image("fal-ai/seedvr/upscale/image", _seed_arg(args, seed)),)
+        endpoint = ("fal-ai/seedvr/upscale/image/seamless" if seamless
+                    else "fal-ai/seedvr/upscale/image")
+        return (run_image(endpoint, _seed_arg(args, seed)),)
 
 
 class FalTopazUpscale:
@@ -1026,7 +1038,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511, newest ($0.03/MP)",
     "FalSeedreamEdit": "FAL Edit — Seedream v5-pro / v5-lite / v4.5 ($0.04–0.14)",
     "FalGeminiFlashEdit": "FAL Banana — Gemini Flash 3.1 / 2.5, older node ($0.039–0.08)",
-    "FalSeedVRUpscale": "FAL Upscale — SeedVR v2 ($0.001/MP)",
+    "FalSeedVRUpscale": "FAL Upscale — SeedVR v2, opt. seamless ($0.001–0.0025/MP)",
     "FalTopazUpscale": "FAL Upscale — Topaz, model in dropdown ($0.08–1.36)",
     "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp ($0.004)",
     "FalClarityUpscaler": "FAL Upscale — Clarity, creative ($0.03/MP)",
