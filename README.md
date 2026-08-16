@@ -106,6 +106,29 @@ All three also return the model's own `description`, which is where `thinking_le
 surfaces. `use_gemini_ids` switches to the Gemini-branded id of the same model if a workflow
 needs to pin it.
 
+### `FAL/Image/Generate` — structure-controlled text-to-image
+
+| Node | Endpoint | ~Cost |
+|---|---|---|
+| FAL Generate — Flux General | `fal-ai/flux-general` | $0.075/MP, **rounded up** |
+
+FLUX.1 [dev] plus the whole conditioning stack — ControlNet, ControlNet Union, IP-Adapter
+and up to two LoRAs. Feed a depth / normal / lineart map into `control_image` and the render
+follows your geometry, which is what makes it the node to drive from Blender.
+
+Billing rounds up per megapixel: 1536×864 is 1.33 MP and costs **$0.15**, not $0.075. Only a
+render at or under 1 MP gets the single-megapixel rate.
+
+### `FAL/Text` — vision and language
+
+| Node | Endpoint | Billing |
+|---|---|---|
+| FAL Text — VLM | `openrouter/router/vision` | per token |
+| FAL Text — LLM | `openrouter/router` | per token |
+
+Token-billed rather than per call, so instead of a price in the title both return an `info`
+output carrying the model, the token counts and the cost FAL reports for that request.
+
 ### `FAL/Background` — Bria
 | Node | Endpoint | Output | ~Cost |
 |---|---|---|---|
@@ -126,6 +149,8 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | FAL Inpaint — Z-Image Turbo | `fal-ai/z-image/turbo/inpaint` | mask + prompt | $0.01/MP |
 | FAL Inpaint — Qwen Image Edit v1 | `fal-ai/qwen-image-edit/inpaint` | mask + prompt (2511 has no mask endpoint) | ~$0.03/MP |
 | FAL Inpaint — Bria GenFill v2 | `bria/genfill/v2` | mask + instruction | $0.04/MP |
+| FAL Inpaint — Flux Pro v1 Fill | `fal-ai/flux-pro/v1/fill` | mask + prompt; BFL's quality bar | $0.05/MP |
+| FAL Edit — Flux Kontext pro / max | `fal-ai/flux-pro/kontext[/max][/multi]` | instruction + up to 4 refs, auto single/multi routing | $0.04 / $0.08 per image |
 | FAL Edit — Qwen Image Edit 2511 (newest) | `fal-ai/qwen-image-edit-2511` | prompt, multi-ref | $0.03/MP |
 | FAL Edit — Seedream v5-pro / v5-lite / v4.5 | `bytedance/seedream/v5/...`, `fal-ai/bytedance/seedream/v4.5/edit` | prompt, up to 10 refs; v5-pro is region-precise + sketch completion | $0.04–0.14 |
 | FAL Upscale — SeedVR v2 | `fal-ai/seedvr/upscale/image` | factor or target res | $0.001/MP |
@@ -180,6 +205,8 @@ fal_background.py  FAL/Background nodes (Bria)
 fal_image_edit.py  FAL/Image/{Remove,Inpaint,Edit,Upscale,Expand,Vector,Finish}
 fal_material.py    FAL/Image/Material — PATINA PBR maps
 fal_banana.py      FAL/Image/Banana — Nano Banana / Gemini
+fal_generate.py    FAL/Image/Generate — Flux General (ControlNet / LoRA / IP-Adapter)
+fal_text.py        FAL/Text — VLM and LLM over OpenRouter
 fal_retag.py       tidies the co-installed gokayfem pack's categories (see below)
 fal_registry.py    catalog list / search / schema / diff
 ```

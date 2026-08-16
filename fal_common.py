@@ -150,12 +150,19 @@ def blank_image():
 
 
 def url_to_image_tensor(url):
-    """Download a URL into a [1,H,W,3] RGB IMAGE tensor (blank on failure)."""
+    """Download a URL into a [1,H,W,3] RGB IMAGE tensor.
+
+    Returns a blank frame on failure — this one is for decorative previews (mesh
+    thumbnails, rendered turntables), where losing the picture should not fail a job
+    that otherwise succeeded. It still says so out loud. For real image output use
+    images_from_result, which raises.
+    """
     try:
         pil = Image.open(io.BytesIO(_fetch(url))).convert("RGB")
         arr = np.asarray(pil).astype(np.float32) / 255.0
         return torch.from_numpy(arr).unsqueeze(0)
-    except Exception:
+    except Exception as e:
+        print(f"[FAL] warning: could not fetch preview {url}: {e}")
         return blank_image()
 
 
@@ -198,16 +205,29 @@ def _collect_image_urls(result):
 
 
 def images_from_result(result):
-    """Best-effort: turn any FAL image result into a batched [N,H,W,3] IMAGE tensor."""
-    tensors = []
-    for u in _collect_image_urls(result):
+    """Turn a FAL image result into a batched [N,H,W,3] IMAGE tensor.
+
+    Raises rather than returning a blank frame. A silent black image is worse than an
+    error: downstream nodes accept it, the prompt completes as a success, and anything
+    driving ComfyUI headlessly (a Blender add-on, a script) treats the black frame as
+    the render. Fail loudly instead.
+    """
+    urls = _collect_image_urls(result)
+    tensors, failed = [], []
+    for u in urls:
         try:
             arr = np.asarray(Image.open(io.BytesIO(_fetch(u))).convert("RGB")).astype(np.float32) / 255.0
             tensors.append(torch.from_numpy(arr))
-        except Exception:
-            pass
+        except Exception as e:
+            failed.append(f"{u} ({e})")
     if not tensors:
-        return blank_image()
+        if urls:
+            raise RuntimeError(
+                "FAL returned image URLs but none could be downloaded/decoded: "
+                + "; ".join(failed))
+        raise RuntimeError(f"no image URL in the FAL response: {result}")
+    if failed:
+        print(f"[FAL] warning: {len(failed)} of {len(urls)} images failed to download: {failed}")
     # Assume FAL returns same-sized images in a batch; if not, fall back to the first.
     try:
         return torch.stack(tensors, 0)
@@ -241,6 +261,39 @@ def run_image_described(endpoint, arguments):
     if description:
         print(f"[FAL] description: {description}")
     return images_from_result(result), (description or "")
+
+
+# --------------------------------------------------------------------------- text runner
+
+def run_text(endpoint, arguments):
+    """submit -> wait -> (text, reasoning, info) from an openrouter/router* endpoint.
+
+    No empty-string fallback anywhere. An empty caption is invisible downstream — it just
+    becomes an empty prompt on the next node and the graph completes green — so every
+    failure mode raises instead.
+    """
+    require_key()
+    printable = {k: (f"<{len(v)} urls>" if k.endswith("_urls") else v) for k, v in arguments.items()}
+    print(f"[FAL] {endpoint} <- {printable}")
+    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    if not isinstance(result, dict):
+        raise RuntimeError(f"{endpoint}: unexpected response {result!r}")
+    # openrouter/router can answer 200 with an `error` string and an empty output.
+    err = result.get("error")
+    if err:
+        raise RuntimeError(f"{endpoint} returned an error: {err}")
+    text = (result.get("output") or "").strip()
+    if not text:
+        raise RuntimeError(
+            f"{endpoint} returned an empty output (model={arguments.get('model')}, "
+            f"usage={result.get('usage')}) — raise max_tokens or try another model")
+    if result.get("partial"):
+        print(f"[FAL] warning: {endpoint} flagged the answer as partial — max_tokens hit?")
+    u = result.get("usage") or {}
+    info = (f"{arguments.get('model')} | in={u.get('prompt_tokens', '?')} "
+            f"out={u.get('completion_tokens', '?')} | ${float(u.get('cost') or 0.0):.6f}")
+    print(f"[FAL] DONE {endpoint} — {info}")
+    return text, (result.get("reasoning") or ""), info
 
 
 # --------------------------------------------------------------------------- files (meshes etc.)

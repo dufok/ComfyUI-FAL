@@ -288,7 +288,158 @@ class FalBriaGenFill:
         return (run_image("bria/genfill/v2", args),)
 
 
+class FalFluxProFill:
+    """fal-ai/flux-pro/v1/fill — BFL's FLUX.1 Fill [pro], the quality bar for masked
+    inpainting. $0.05/MP, billed rounded up per megapixel.
+
+    Fill has no server-side dilate (unlike /erase), so grow_mask is the only way to give
+    the model margin — but it defaults to 0 here: an inpaint mask is a composition the
+    user painted, and silently growing it moves the object.
+
+    Set finetune_id to route to fal-ai/flux-pro/v1/fill-finetuned instead ($0.06/MP)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "prompt": ("STRING", {"default": "", "multiline": True,
+                           "tooltip": "What to paint inside the mask. For pure removal the cheaper FAL Remove — Flux Pro v1 Erase is the better node."}),
+                "grow_mask": ("INT", {"default": 0, "min": 0, "max": 100,
+                              "tooltip": "Dilate the mask by N px before upload. 4–12 px hides the seam when the painted edge hugs the object."}),
+                "safety_tolerance": (["1", "2", "3", "4", "5", "6"], {"default": "2",
+                                     "tooltip": "BFL moderation: 1 strictest, 6 most permissive."}),
+            },
+            "optional": {
+                "num_images": ("INT", {"default": 1, "min": 1, "max": 4,
+                               "tooltip": "API hard cap is 4."}),
+                "enhance_prompt": ("BOOLEAN", {"default": False,
+                                   "tooltip": "Server-side LLM rewrite of your prompt. Off by default: it makes the same prompt non-reproducible."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
+                "finetune_id": ("STRING", {"default": "",
+                                "tooltip": "Your BFL finetune id. Non-empty switches to fal-ai/flux-pro/v1/fill-finetuned ($0.06/MP)."}),
+                "finetune_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                                       "tooltip": "Only used with finetune_id. Raise if the concept is not coming through."}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image/Inpaint"
+
+    def run(self, image, mask, prompt, grow_mask, safety_tolerance,
+            num_images=1, enhance_prompt=False, seed=0, finetune_id="", finetune_strength=1.0):
+        from .fal_common import grow_mask as _grow
+        # Fill requires the mask to match the image exactly — cheaper to catch here than to
+        # pay for the 422.
+        ih, iw = int(image.shape[1]), int(image.shape[2])
+        mh, mw = int(mask.shape[-2]), int(mask.shape[-1])
+        if (mh, mw) != (ih, iw):
+            raise RuntimeError(
+                f"mask is {mw}x{mh} but the image is {iw}x{ih} — flux-pro/v1/fill needs them to "
+                "match exactly; mask the same image you feed in, or resize the mask first")
+        args = {
+            "image_url": upload_image(image),
+            "mask_url": upload_mask(_grow(mask, grow_mask)),
+            "prompt": prompt.strip(),
+            "num_images": int(num_images),
+            "output_format": "png",     # deliberate non-default: lossless for compositing back
+        }
+        if safety_tolerance != "2":
+            args["safety_tolerance"] = safety_tolerance
+        if enhance_prompt:
+            args["enhance_prompt"] = True
+        endpoint = "fal-ai/flux-pro/v1/fill"
+        if finetune_id.strip():
+            endpoint = "fal-ai/flux-pro/v1/fill-finetuned"
+            args["finetune_id"] = finetune_id.strip()
+            args["finetune_strength"] = float(finetune_strength)
+        return (run_image(endpoint, _seed_arg(args, seed)),)
+
+
 # ============================================================================ Edit
+
+class FalFluxKontextEdit:
+    """FLUX.1 Kontext (Black Forest Labs) — instruction editing that leaves the rest of the
+    frame intact. Every connected image becomes a reference and the prompt can address them
+    by number ("put the logo from image 2 on the mug in image 1"); a batched IMAGE counts as
+    several references on its own.
+
+    Routing is automatic: one reference uses the single-image endpoint, two or more use
+    /multi. Both cost the same, so there is nothing to choose.
+    pro $0.04/image · max $0.08/image — per image, so num_images=4 on max is $0.32."""
+
+    ENDPOINTS = {
+        ("pro", False): "fal-ai/flux-pro/kontext",
+        ("pro", True): "fal-ai/flux-pro/kontext/multi",
+        ("max", False): "fal-ai/flux-pro/kontext/max",
+        ("max", True): "fal-ai/flux-pro/kontext/max/multi",
+    }
+    RATIOS = ["auto", "21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"tooltip": "Reference 1. A batched IMAGE counts as several references and routes to /multi."}),
+                "prompt": ("STRING", {"default": "", "multiline": True,
+                           "tooltip": "An instruction, not a caption — 'change the jacket to red, keep everything else'."}),
+                "tier": (["pro", "max"], {"default": "pro",
+                         "tooltip": "pro $0.04/image. max $0.08/image — better prompt adherence and typography, same inputs."}),
+            },
+            "optional": {
+                "image_2": ("IMAGE", {"tooltip": "Extra references. Any second image routes the call to the /multi endpoint — same price."}),
+                "image_3": ("IMAGE",),
+                "image_4": ("IMAGE",),
+                "aspect_ratio": (cls.RATIOS, {"default": "auto",
+                                 "tooltip": "'auto' omits the key so the result keeps the input's shape."}),
+                "guidance_scale": ("FLOAT", {"default": 3.5, "min": 1.0, "max": 20.0, "step": 0.1,
+                                   "tooltip": "How literally the instruction is followed. Above ~5 it starts damaging the parts you did not ask it to change."}),
+                "enhance_prompt": ("BOOLEAN", {"default": False,
+                                   "tooltip": "Let BFL rewrite your prompt server-side. Helps short prompts, overrides precise ones."}),
+                "num_images": ("INT", {"default": 1, "min": 1, "max": 4}),
+                "safety_tolerance": (["1", "2", "3", "4", "5", "6"], {"default": "2"}),
+                "output_format": (["png", "jpeg"], {"default": "png"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2_147_483_647}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    FUNCTION = "run"
+    CATEGORY = "FAL/Image/Edit"
+
+    def run(self, image, prompt, tier, image_2=None, image_3=None, image_4=None,
+            aspect_ratio="auto", guidance_scale=3.5, enhance_prompt=False, num_images=1,
+            safety_tolerance="2", output_format="png", seed=0):
+        if not prompt.strip():
+            raise RuntimeError("prompt is required — Kontext is instruction editing, "
+                               "there is no unconditional mode")
+        urls = upload_image_frames(image)
+        for extra in (image_2, image_3, image_4):
+            if extra is not None:
+                urls.extend(upload_image_frames(extra))
+        if not urls:
+            raise RuntimeError("no reference image — connect a LoadImage (or any IMAGE) output")
+
+        multi = len(urls) > 1
+        args = {"prompt": prompt.strip(), "output_format": output_format}
+        args["image_urls" if multi else "image_url"] = urls if multi else urls[0]
+        if aspect_ratio != "auto":
+            # nullable with no default on the edit routes: omitting it keeps the input shape
+            args["aspect_ratio"] = aspect_ratio
+        if abs(float(guidance_scale) - 3.5) > 1e-6:
+            args["guidance_scale"] = float(guidance_scale)
+        if int(num_images) != 1:
+            args["num_images"] = int(num_images)
+        if str(safety_tolerance) != "2":
+            args["safety_tolerance"] = str(safety_tolerance)   # a STRING, never an int
+        if enhance_prompt:
+            args["enhance_prompt"] = True
+        return (run_image(self.ENDPOINTS[(tier, multi)], _seed_arg(args, seed)),)
+
 
 class FalQwenImageEdit2511:
     """fal-ai/qwen-image-edit-2511 — newest Qwen edit (Nov 2025), $0.03/MP.
@@ -844,6 +995,8 @@ NODE_CLASS_MAPPINGS = {
     "FalZImageTurboInpaint": FalZImageTurboInpaint,
     "FalQwenImageEditInpaint": FalQwenImageEditInpaint,
     "FalBriaGenFill": FalBriaGenFill,
+    "FalFluxProFill": FalFluxProFill,
+    "FalFluxKontextEdit": FalFluxKontextEdit,
     "FalQwenImageEdit2511": FalQwenImageEdit2511,
     "FalSeedreamEdit": FalSeedreamEdit,
     "FalGeminiFlashEdit": FalGeminiFlashEdit,
@@ -868,6 +1021,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalZImageTurboInpaint": "FAL Inpaint — Z-Image Turbo ($0.01/MP)",
     "FalQwenImageEditInpaint": "FAL Inpaint — Qwen Image Edit v1 (mask, $0.03/MP)",
     "FalBriaGenFill": "FAL Inpaint — Bria GenFill v2 ($0.04/MP)",
+    "FalFluxProFill": "FAL Inpaint — Flux Pro v1 Fill, BFL ($0.05/MP)",
+    "FalFluxKontextEdit": "FAL Edit — Flux Kontext pro / max, BFL ($0.04 / $0.08)",
     "FalQwenImageEdit2511": "FAL Edit — Qwen Image Edit 2511, newest ($0.03/MP)",
     "FalSeedreamEdit": "FAL Edit — Seedream v5-pro / v5-lite / v4.5 ($0.04–0.14)",
     "FalGeminiFlashEdit": "FAL Banana — Gemini Flash 3.1 / 2.5, older node ($0.039–0.08)",

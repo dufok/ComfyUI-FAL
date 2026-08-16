@@ -3,12 +3,21 @@
 Each node module exposes its own NODE_CLASS_MAPPINGS / NODE_DISPLAY_NAME_MAPPINGS;
 this file merges them. New modules just need to be imported and merged here.
 """
-from . import fal_3d, fal_background, fal_banana, fal_image_edit, fal_material
+from . import (
+    fal_3d,
+    fal_background,
+    fal_banana,
+    fal_generate,
+    fal_image_edit,
+    fal_material,
+    fal_text,
+)
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
-for _mod in (fal_3d, fal_background, fal_banana, fal_image_edit, fal_material):
+for _mod in (fal_3d, fal_background, fal_banana, fal_generate, fal_image_edit,
+             fal_material, fal_text):
     NODE_CLASS_MAPPINGS.update(_mod.NODE_CLASS_MAPPINGS)
     NODE_DISPLAY_NAME_MAPPINGS.update(_mod.NODE_DISPLAY_NAME_MAPPINGS)
 
