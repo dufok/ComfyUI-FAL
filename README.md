@@ -40,6 +40,7 @@ in-graph 3D view, or open `download_url` in a browser to grab the file for Blend
 | FAL 3D — Hunyuan3D v3.1 pro/rapid | `fal-ai/hunyuan-3d/v3.1/...` | pro $0.375 / rapid $0.225, +$0.15 each: PBR, multiview, custom face count |
 | FAL 3D — Hunyuan Sketch→3D | `fal-ai/hunyuan3d-v3/sketch-to-3d` | $0.375, +$0.15 PBR |
 | FAL 3D — TRELLIS | `fal-ai/trellis` | $0.02 |
+| FAL 3D — Hi3D v3.0 2048³ / Hitem3D | `hitem3d/hi3d/v3.0/image-to-3d`, `…/multi-view-to-3d`, `hitem3d/hi3d/image-to-3d` | v3.0: $2.10 quality / $9.10 master (2048³ voxels, 8K textures); legacy v1.5–2.1: $0.30–0.90. Texture +$0.20, PBR +$0.10, triangle mesh only |
 | FAL 3D — TripoSplat (Gaussian Splat) | `tripo3d/triposplat` | $0.05 |
 
 Tripo endpoints bill in **Tripo credits** (1 credit = $0.01) — on the FAL usage page the

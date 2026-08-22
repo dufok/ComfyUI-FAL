@@ -10,6 +10,9 @@ FAL image-to-3D mesh nodes (category: FAL/3D).
                              PBR / multiview / custom face count; rapid $0.225)
   * FalHunyuanSketchTo3D -> fal-ai/hunyuan3d-v3/sketch-to-3d     (sketch + prompt -> 3D, $0.375+)
   * FalTrellisImageTo3D  -> fal-ai/trellis                      (Microsoft TRELLIS, fine control)
+  * FalHi3D              -> hitem3d/hi3d/...                    (Sparc3D detail king, v3.0 = 2048³
+                             voxels / 8K textures; $2.10 quality / $9.10 master, legacy $0.30-0.90;
+                             extra views wired = v3.0 multi-view endpoint)
 
   * FalMeshyV7           -> meshy/v7 image|multi-image        (geometry + PBR + quad topology +
                              rigging + animation in one call; $0.80 bare / $1.20 textured /
@@ -494,6 +497,112 @@ class FalTripoSplat:
 
 # ============================================================================ Meshy v7
 
+# ============================================================================ Hi3D / Hitem3D
+
+HI3D_MODELS = {
+    "hi3d v3.0 (2048³)": "hi3dv3.0",
+    "hitem3d v2.1": "hitem3dv2.1",
+    "hitem3d v2.0": "hitem3dv2.0",
+    "hitem3d v1.5": "hitem3dv1.5",
+    "scene-portrait v2.1": "scene-portraitv2.1",
+    "scene-portrait v2.0": "scene-portraitv2.0",
+    "scene-portrait v1.5": "scene-portraitv1.5",
+}
+HI3D_V3_RES = ("2048quality", "2048master")
+
+
+class FalHi3D:
+    """hitem3d/hi3d — Math Magic's Hitem3D / Hi3D (Sparc3D + Ultra3D), the surface-detail
+    champion: v3.0 builds geometry at 2048³ voxels (~2M faces quality / ~5M master) with
+    8K textures. Billed in credits at $0.02: geometry scales with resolution, texture is
+    +10 cr ($0.20), PBR +5 cr ($0.10).
+
+      v3.0    $2.10 (2048quality) / $9.10 (2048master) with texture + PBR
+      legacy  $0.30–0.90 (v1.5 / v2.0 / v2.1, 512–1536pro)
+
+    Output is a dense TRIANGLE mesh — the endpoint has no quad option at any tier. For
+    quads, wire glb_file into Tripo Remesh ($0.01, ≤10k quads), Meshy v5 Remesh ($0.20,
+    ≤300k faces) or Smart Topology ($0.75).
+
+    Wiring any of back/left/right switches to hitem3d/hi3d/v3.0/multi-view-to-3d
+    (v3.0 only) with `image` as the front view."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"tooltip": "Single view — or the FRONT view when back/left/right are wired."}),
+                "version": (list(HI3D_MODELS), {"default": "hi3d v3.0 (2048³)",
+                            "tooltip": "scene-portrait = the human/portrait variants of the same generations."}),
+                "resolution": (["2048quality", "2048master", "1536pro", "1536profast", "1536fast",
+                                "1536", "1024", "512"],
+                               {"default": "2048quality",
+                                "tooltip": "2048* = v3.0 only (geometry $1.80 / $8.80!). 512–1536pro = legacy. "
+                                           "A mismatch is coerced with a console warning, not billed twice."}),
+                "enable_texture": ("BOOLEAN", {"default": True, "tooltip": "+$0.20 (10 credits). Off = bare geometry."}),
+                "enable_pbr": ("BOOLEAN", {"default": True, "tooltip": "+$0.10 (5 credits). v2.0 and above."}),
+            },
+            "optional": {
+                "export_format": (["glb", "obj", "stl", "fbx", "usdz"], {"default": "glb"}),
+                "face_count": ("INT", {"default": 0, "min": 0, "max": 10_000_000, "step": 100_000,
+                               "tooltip": "0 = auto. Hi3D recommends 2M for 2048quality, 5M for 2048master."}),
+                "shading": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05,
+                            "tooltip": "v3.0 only — how much lighting the texture bakes in."}),
+                "back_image": ("IMAGE", {"tooltip": "Extra view of the same object — switches to the v3.0 multi-view endpoint."}),
+                "left_image": ("IMAGE",),
+                "right_image": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = MESH_RET_TYPES
+    RETURN_NAMES = MESH_RET_NAMES
+    FUNCTION = "generate"
+    CATEGORY = "FAL/3D"
+    OUTPUT_NODE = True
+
+    def generate(self, image, version, resolution, enable_texture, enable_pbr,
+                 export_format="glb", face_count=0, shading=0.5,
+                 back_image=None, left_image=None, right_image=None):
+        model = HI3D_MODELS[version]
+        v3 = model.startswith("hi3d")
+        views = {"back_image_url": back_image, "left_image_url": left_image,
+                 "right_image_url": right_image}
+        views = {k: v for k, v in views.items() if v is not None}
+        # Pre-flight: multi-view exists only on v3.0, and silently upgrading a $0.50 legacy
+        # call to a $2.10+ one is not this node's decision to make.
+        if views and not v3:
+            raise RuntimeError("multi-view is v3.0 only — pick 'hi3d v3.0 (2048³)' or unplug the extra views")
+
+        if v3 and resolution not in HI3D_V3_RES:
+            print(f"[FAL] hi3d v3.0 has no {resolution} — using 2048quality")
+            resolution = "2048quality"
+        elif not v3 and resolution in HI3D_V3_RES:
+            print(f"[FAL] {model} caps at 1536pro — using it instead of {resolution}")
+            resolution = "1536pro"
+
+        args = {
+            "model": model,
+            "resolution": resolution,
+            "enable_texture": bool(enable_texture),
+            "enable_pbr": bool(enable_pbr),
+            "export_format": export_format,
+        }
+        if face_count and face_count > 0:
+            args["face_count"] = int(face_count)
+        if v3:
+            args["shading"] = float(shading)
+
+        if views:
+            endpoint = "hitem3d/hi3d/v3.0/multi-view-to-3d"
+            args["front_image_url"] = upload_image(image)
+            for key, img in views.items():
+                args[key] = upload_image(img)
+        else:
+            endpoint = "hitem3d/hi3d/v3.0/image-to-3d" if v3 else "hitem3d/hi3d/image-to-3d"
+            args["image_url"] = upload_image(image)
+        return run_mesh(endpoint, args, "hi3d")
+
+
 MESHY_V7_ENDPOINTS = {
     "single image": "meshy/v7/image-to-3d",
     "multi image": "meshy/v7/multi-image-to-3d",
@@ -858,6 +967,7 @@ NODE_CLASS_MAPPINGS = {
     "FalHunyuan3DV31": FalHunyuan3DV31,
     "FalHunyuanSketchTo3D": FalHunyuanSketchTo3D,
     "FalTrellisImageTo3D": FalTrellisImageTo3D,
+    "FalHi3D": FalHi3D,
     "FalTripoSplat": FalTripoSplat,
     "FalMeshyV7": FalMeshyV7,
     "FalSmartTopology": FalSmartTopology,
@@ -874,6 +984,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalHunyuan3DV31": "FAL 3D — Hunyuan3D v3.1 pro/rapid ($0.225–0.525)",
     "FalHunyuanSketchTo3D": "FAL 3D — Hunyuan Sketch→3D (prompt, $0.375+)",
     "FalTrellisImageTo3D": "FAL 3D — TRELLIS, fine control ($0.02)",
+    "FalHi3D": "FAL 3D — Hi3D v3.0 2048³ / Hitem3D ($0.30–9.10)",
     "FalTripoSplat": "FAL 3D — TripoSplat, Gaussian Splat ($0.05)",
     "FalTripoRemesh": "FAL 3D — Tripo Remesh, smart low-poly ($0.01)",
     "FalTripoSegment": "FAL 3D — Tripo Segment, parts ($0.01)",
