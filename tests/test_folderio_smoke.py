@@ -126,11 +126,17 @@ Split = pack.NODE_CLASS_MAPPINGS["FolderIOSplitByShortSide"]
 Merge = pack.NODE_CLASS_MAPPINGS["FolderIOMergeSubset"]
 if not mod.HEIF_OK:
     Image.new("RGB", (32, 24), (10, 10, 200)).save(os.path.join(d, "aa_small.png"))
-    imgs, stems, n = Load().load("smoke", "name", 0, 0)
-small = min(range(len(imgs)), key=lambda i: min(imgs[i].shape[1], imgs[i].shape[2]))
-below, idx, nb, nok = Split().split(imgs, [40])
-assert idx == [small] and nb == 1 and nok == len(imgs) - 1, (idx, nb, nok, stems)
-assert tuple(below[0].shape) == (1, 24, 32, 3), below[0].shape
+imgs, stems, n = Load().load("smoke", "name", 0, 0)
+# Data-driven so the fixture set can vary: threshold sits between the smallest photo and the
+# next one up, so exactly one image is below it.
+shorts = [min(int(t.shape[1]), int(t.shape[2])) for t in imgs]
+small = shorts.index(min(shorts))
+ordered = sorted(set(shorts))
+assert len(ordered) > 1, shorts
+threshold = ordered[1]
+below, idx, nb, nok = Split().split(imgs, [threshold])
+assert idx == [small] and nb == 1 and nok == len(imgs) - 1, (idx, nb, nok, shorts, stems)
+assert below[0] is imgs[small]
 m = Merge()
 assert m.check_lazy_status(imgs, idx, (None,)) == ["replacements"]   # needs the upscaled list
 assert m.check_lazy_status(imgs, [], (None,)) == []                   # nothing to do -> upscaler never runs
@@ -146,7 +152,7 @@ try:
     raise SystemExit("expected a count-mismatch error")
 except ValueError as e:
     print("mismatch ->", e)
-below2, idx2, nb2, nok2 = Split().split(imgs, [10])
+below2, idx2, nb2, nok2 = Split().split(imgs, [min(shorts)])
 assert below2 == [] and idx2 == [] and nb2 == 0 and nok2 == len(imgs)
 
 # --- ICC: an embedded sRGB profile passes through with pixels intact
