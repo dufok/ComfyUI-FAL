@@ -1,194 +1,416 @@
 {
-  "last_node_id": 9,
-  "last_link_id": 7,
-  "nodes": [
+ "last_node_id": 9,
+ "last_link_id": 7,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    50,
+    250
+   ],
+   "size": [
+    315,
+    314
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
     {
-      "id": 1,
-      "type": "LoadImage",
-      "pos": [50, 250],
-      "size": [315, 314],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {"name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0},
-        {"name": "MASK", "type": "MASK", "links": null, "slot_index": 1}
-      ],
-      "properties": {"Node name for S&R": "LoadImage"},
-      "widgets_values": ["sketch.png", "image"],
-      "title": "1. Скетч"
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      1
+     ],
+     "slot_index": 0
     },
     {
-      "id": 8,
-      "type": "Note",
-      "pos": [50, 620],
-      "size": [370, 260],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": ["СКЕТЧ → ОБЪЁМ → 3D (~$0.55 за прогон)\n\n1. Загрузи скетч в LoadImage.\n2. Qwen Edit 2511 ($0.03/MP) превращает скетч в объёмный рендер — правь prompt под свой объект. Альтернативы: Gemini Flash 3.1 / Nano Banana Pro.\n3. Bria Remove ($0.018) вырезает объект — чистый фон сильно улучшает 3D.\n4. Tripo H3.1 (geometry=detailed, ~$0.50) делает .glb: файл в output/, ссылка — выход info. Дёшево поитерироваться: geometry=standard ($0.30) или нода Tripo v2.5 ($0.30 со standard-текстурой).\n5. Preview3D — интерактивный вьювер: вращение/зум мышкой прямо в графе.\n\nЕщё варианты 3D: Hunyuan3D v3.1 pro (мульти-вид: скетч спереди + виды сбоку/сзади) и Hunyuan Sketch→3D ($0.375) — скетч сразу в 3D без шагов 2-3 (быстрая проба, но текстура беднее, чем через рендер).\nЕсли скетч совсем сырой и Qwen буксует — Nano Banana Pro Edit из пака gokayfem тем же промптом."],
-      "title": "README"
-    },
-    {
-      "id": 2,
-      "type": "FalQwenImageEdit2511",
-      "pos": [430, 250],
-      "size": [400, 430],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {"name": "image", "type": "IMAGE", "link": 1},
-        {"name": "image_2", "type": "IMAGE", "link": null},
-        {"name": "image_3", "type": "IMAGE", "link": null}
-      ],
-      "outputs": [
-        {"name": "images", "type": "IMAGE", "links": [2, 3], "slot_index": 0}
-      ],
-      "properties": {"Node name for S&R": "FalQwenImageEdit2511"},
-      "widgets_values": [
-        "Turn this sketch into a realistic 3D render of the object. Solid volumetric forms, accurate proportions from the sketch, soft studio lighting, subtle shadows, matte material, single object fully in frame, centered, on a plain light-gray seamless background, product-photo style. No sketch lines, no paper texture, no text.",
-        4.5,
-        28,
-        "regular",
-        "flat, 2d, drawing, sketch lines, outline only, paper background, text, watermark",
-        1,
-        0,
-        "fixed"
-      ],
-      "title": "2. Скетч → объёмный рендер (Qwen 2511)"
-    },
-    {
-      "id": 3,
-      "type": "PreviewImage",
-      "pos": [880, 40],
-      "size": [260, 280],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {"name": "images", "type": "IMAGE", "link": 2}
-      ],
-      "outputs": [],
-      "properties": {"Node name for S&R": "PreviewImage"},
-      "widgets_values": [],
-      "title": "Рендер"
-    },
-    {
-      "id": 4,
-      "type": "FalBriaBackgroundRemove",
-      "pos": [880, 400],
-      "size": [280, 60],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {"name": "image", "type": "IMAGE", "link": 3}
-      ],
-      "outputs": [
-        {"name": "image", "type": "IMAGE", "links": [4, 5], "slot_index": 0},
-        {"name": "mask", "type": "MASK", "links": null, "slot_index": 1}
-      ],
-      "properties": {"Node name for S&R": "FalBriaBackgroundRemove"},
-      "widgets_values": [],
-      "title": "3. Чистый фон (Bria)"
-    },
-    {
-      "id": 5,
-      "type": "PreviewImage",
-      "pos": [1190, 40],
-      "size": [260, 280],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {"name": "images", "type": "IMAGE", "link": 4}
-      ],
-      "outputs": [],
-      "properties": {"Node name for S&R": "PreviewImage"},
-      "widgets_values": [],
-      "title": "Вырезанный объект"
-    },
-    {
-      "id": 6,
-      "type": "FalTripoH31",
-      "pos": [1190, 400],
-      "size": [330, 360],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {"name": "image", "type": "IMAGE", "link": 5}
-      ],
-      "outputs": [
-        {"name": "glb_file", "type": "STRING", "links": [7], "slot_index": 0},
-        {"name": "download_url", "type": "STRING", "links": null, "slot_index": 1},
-        {"name": "preview", "type": "IMAGE", "links": [6], "slot_index": 2},
-        {"name": "info", "type": "STRING", "links": null, "slot_index": 3}
-      ],
-      "properties": {"Node name for S&R": "FalTripoH31"},
-      "widgets_values": [
-        "detailed",
-        "standard",
-        true,
-        true,
-        false,
-        0,
-        "original_image",
-        "default",
-        0,
-        "fixed"
-      ],
-      "title": "4. Image → 3D (Tripo H3.1, detailed, ~$0.50)"
-    },
-    {
-      "id": 7,
-      "type": "PreviewImage",
-      "pos": [1570, 40],
-      "size": [280, 280],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {"name": "images", "type": "IMAGE", "link": 6}
-      ],
-      "outputs": [],
-      "properties": {"Node name for S&R": "PreviewImage"},
-      "widgets_values": [],
-      "title": "Рендер Tripo (картинка)"
-    },
-    {
-      "id": 9,
-      "type": "Preview3D",
-      "pos": [1570, 380],
-      "size": [400, 460],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {"name": "model_file", "type": "STRING", "link": 7, "widget": {"name": "model_file"}}
-      ],
-      "outputs": [],
-      "properties": {"Node name for S&R": "Preview3D"},
-      "widgets_values": [""],
-      "title": "5. 3D-вьювер (крутить мышкой)"
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
     }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "sketch.png",
+    "image"
+   ],
+   "title": "1. Sketch"
+  },
+  {
+   "id": 8,
+   "type": "Note",
+   "pos": [
+    50,
+    620
+   ],
+   "size": [
+    370,
+    260
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {},
+   "widgets_values": [
+    "SKETCH -> VOLUME -> 3D (~$0.55 per run)\n\n1. Load a sketch into LoadImage.\n2. Qwen Edit 2511 ($0.03/MP) turns the sketch into a shaded render; edit the prompt for your own object. Alternatives: Gemini Flash 3.1 / Nano Banana Pro.\n3. Bria Remove ($0.018) cuts the object out; a clean background improves the 3D a lot.\n4. Tripo H3.1 (geometry=detailed, ~$0.50) makes the .glb: the file lands in output/, the link is the `info` output. To iterate cheaply use geometry=standard ($0.30) or the Tripo v2.5 node ($0.30 with a standard texture).\n5. Preview3D is an interactive viewer: rotate and zoom with the mouse right in the graph.\n\nOther routes to 3D: Hunyuan3D v3.1 pro (multi-view: sketch from the front plus side/back views) and Hunyuan Sketch->3D ($0.375), which goes straight from a sketch to 3D without steps 2-3 (a fast trial, but the texture is poorer than going through a render).\nIf the sketch is very rough and Qwen struggles, try Nano Banana Pro Edit from the gokayfem pack with the same prompt."
+   ],
+   "title": "README"
+  },
+  {
+   "id": 2,
+   "type": "FalQwenImageEdit2511",
+   "pos": [
+    430,
+    250
+   ],
+   "size": [
+    400,
+    430
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "image_2",
+     "type": "IMAGE",
+     "link": null
+    },
+    {
+     "name": "image_3",
+     "type": "IMAGE",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      2,
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FalQwenImageEdit2511"
+   },
+   "widgets_values": [
+    "Turn this sketch into a realistic 3D render of the object. Solid volumetric forms, accurate proportions from the sketch, soft studio lighting, subtle shadows, matte material, single object fully in frame, centered, on a plain light-gray seamless background, product-photo style. No sketch lines, no paper texture, no text.",
+    4.5,
+    28,
+    "regular",
+    "flat, 2d, drawing, sketch lines, outline only, paper background, text, watermark",
+    1,
+    0,
+    "fixed"
+   ],
+   "title": "2. Sketch -> shaded render (Qwen 2511)"
+  },
+  {
+   "id": 3,
+   "type": "PreviewImage",
+   "pos": [
+    880,
+    40
+   ],
+   "size": [
+    260,
+    280
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 2
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "PreviewImage"
+   },
+   "widgets_values": [],
+   "title": "Render"
+  },
+  {
+   "id": 4,
+   "type": "FalBriaBackgroundRemove",
+   "pos": [
+    880,
+    400
+   ],
+   "size": [
+    280,
+    60
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "links": [
+      4,
+      5
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FalBriaBackgroundRemove"
+   },
+   "widgets_values": [],
+   "title": "3. Clean background (Bria)"
+  },
+  {
+   "id": 5,
+   "type": "PreviewImage",
+   "pos": [
+    1190,
+    40
+   ],
+   "size": [
+    260,
+    280
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 4
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "PreviewImage"
+   },
+   "widgets_values": [],
+   "title": "Cut-out object"
+  },
+  {
+   "id": 6,
+   "type": "FalTripoH31",
+   "pos": [
+    1190,
+    400
+   ],
+   "size": [
+    330,
+    360
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "glb_file",
+     "type": "STRING",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "download_url",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 1
+    },
+    {
+     "name": "preview",
+     "type": "IMAGE",
+     "links": [
+      6
+     ],
+     "slot_index": 2
+    },
+    {
+     "name": "info",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 3
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FalTripoH31"
+   },
+   "widgets_values": [
+    "detailed",
+    "standard",
+    true,
+    true,
+    false,
+    0,
+    "original_image",
+    "default",
+    0,
+    "fixed"
+   ],
+   "title": "4. Image → 3D (Tripo H3.1, detailed, ~$0.50)"
+  },
+  {
+   "id": 7,
+   "type": "PreviewImage",
+   "pos": [
+    1570,
+    40
+   ],
+   "size": [
+    280,
+    280
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 6
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "PreviewImage"
+   },
+   "widgets_values": [],
+   "title": "Tripo render (image)"
+  },
+  {
+   "id": 9,
+   "type": "Preview3D",
+   "pos": [
+    1570,
+    380
+   ],
+   "size": [
+    400,
+    460
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model_file",
+     "type": "STRING",
+     "link": 7,
+     "widget": {
+      "name": "model_file"
+     }
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "Preview3D"
+   },
+   "widgets_values": [
+    ""
+   ],
+   "title": "5. 3D viewer (drag to rotate)"
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   2,
+   0,
+   "IMAGE"
   ],
-  "links": [
-    [1, 1, 0, 2, 0, "IMAGE"],
-    [2, 2, 0, 3, 0, "IMAGE"],
-    [3, 2, 0, 4, 0, "IMAGE"],
-    [4, 4, 0, 5, 0, "IMAGE"],
-    [5, 4, 0, 6, 0, "IMAGE"],
-    [6, 6, 2, 7, 0, "IMAGE"],
-    [7, 6, 0, 9, 0, "STRING"]
+  [
+   2,
+   2,
+   0,
+   3,
+   0,
+   "IMAGE"
   ],
-  "groups": [],
-  "config": {},
-  "extra": {},
-  "version": 0.4
+  [
+   3,
+   2,
+   0,
+   4,
+   0,
+   "IMAGE"
+  ],
+  [
+   4,
+   4,
+   0,
+   5,
+   0,
+   "IMAGE"
+  ],
+  [
+   5,
+   4,
+   0,
+   6,
+   0,
+   "IMAGE"
+  ],
+  [
+   6,
+   6,
+   2,
+   7,
+   0,
+   "IMAGE"
+  ],
+  [
+   7,
+   6,
+   0,
+   9,
+   0,
+   "STRING"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
 }

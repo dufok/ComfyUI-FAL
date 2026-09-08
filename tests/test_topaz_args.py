@@ -32,7 +32,7 @@ def call(**kw):
 
 
 # Wonder 3.5 -> generative; enhancement_strength kept, subject_detection dropped (Wonder 3 only)
-ep, a = call(model="gen · Wonder 3.5 (лучший универсал)", enhancement_strength="high",
+ep, a = call(model="gen · Wonder 3.5 (best all-round)", enhancement_strength="high",
              subject_detection="Foreground", fix_compression=0.5)
 assert ep == mod.GENERATIVE, ep
 assert a["model"] == "Wonder 3.5" and a["enhancement_strength"] == "high"
@@ -54,7 +54,7 @@ _, a = call(model="precision · CGI (renders)", fix_compression=0.6, sharpen=0.2
 assert "fix_compression" not in a and a["sharpen"] == 0.2, a
 
 # face pass on -> strength/creativity ride along
-_, a = call(model="gen · Wonder 3.5 (лучший универсал)", face_enhancement=True, face_strength=0.5, face_creativity=0.2)
+_, a = call(model="gen · Wonder 3.5 (best all-round)", face_enhancement=True, face_strength=0.5, face_creativity=0.2)
 assert a["face_enhancement"] is True and a["face_enhancement_strength"] == 0.5
 assert a["face_enhancement_creativity"] == 0.2
 
@@ -82,4 +82,11 @@ for label, (endpoint, api_model, allowed) in mod.MODELS.items():
     assert ep == endpoint, label
     assert (a.get("model") == api_model) if api_model else ("model" not in a), (label, a)
 
-print(f"TOPAZ ARGS OK — {len(mod.MODELS)} models routed")
+# a graph saved with the old Russian label still runs
+ep, a = call(model="gen · Wonder 3.5 (лучший универсал)")
+assert ep == mod.GENERATIVE and a["model"] == "Wonder 3.5", a
+assert Node.VALIDATE_INPUTS("gen · Wonder 3.5 (лучший универсал)") is True
+assert Node.VALIDATE_INPUTS(mod.DEFAULT_MODEL) is True
+assert isinstance(Node.VALIDATE_INPUTS("nope"), str)
+
+print(f"TOPAZ ARGS OK — {len(mod.MODELS)} models routed, {len(mod.LEGACY_LABELS)} legacy label(s) mapped")

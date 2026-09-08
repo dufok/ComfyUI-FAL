@@ -42,7 +42,7 @@ FACE = ("face_enhancement", "face_enhancement_strength", "face_enhancement_creat
 # "upscale_factor" is accepted by everything except /transparent, which takes the image alone.
 MODELS = {
     # ---- generative: rebuilds detail, the right family for weak sources
-    "gen · Wonder 3.5 (лучший универсал)": (GENERATIVE, "Wonder 3.5", {*FACE, "enhancement_strength"}),
+    "gen · Wonder 3.5 (best all-round)":   (GENERATIVE, "Wonder 3.5", {*FACE, "enhancement_strength"}),
     "gen · Wonder 3":                      (GENERATIVE, "Wonder 3", {*FACE, "enhancement_strength", "subject_detection"}),
     "gen · Wonder 2":                      (GENERATIVE, "Wonder 2", {*FACE}),
     "gen · Wonder":                        (GENERATIVE, "Wonder", {*FACE}),
@@ -73,6 +73,14 @@ MODELS = {
     "alpha · Transparent (keeps alpha)":   (TRANSPARENT, None, set()),
 }
 
+DEFAULT_MODEL = "gen · Wonder 3.5 (best all-round)"
+
+# Labels that shipped in an earlier version. A saved graph stores the label as its widget value, so
+# renaming one would fail validation with "value not in list"; accept the old spelling and map it.
+LEGACY_LABELS = {
+    "gen · Wonder 3.5 (лучший универсал)": DEFAULT_MODEL,
+}
+
 AUTO = "auto"
 TRI = [AUTO, "on", "off"]
 
@@ -93,7 +101,7 @@ class FalTopazUpscale2026:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "model": (list(MODELS), {"default": "gen · Wonder 3.5 (лучший универсал)",
+                "model": (list(MODELS), {"default": DEFAULT_MODEL,
                                          "tooltip": "gen = rebuilds detail (weak/compressed sources), "
                                                     "precision = deterministic (clean sources), "
                                                     "creative = Bloom re-imagines, alpha = keeps transparency."}),
@@ -135,10 +143,19 @@ class FalTopazUpscale2026:
     FUNCTION = "run"
     CATEGORY = "FAL/Image/Upscale"
 
+    @classmethod
+    def VALIDATE_INPUTS(cls, model):
+        # Naming `model` here replaces ComfyUI's combo-membership check, so a graph saved with a
+        # renamed label still validates and is mapped in run().
+        if model in MODELS or model in LEGACY_LABELS:
+            return True
+        return f"Unknown Topaz model {model!r} — pick one from the dropdown"
+
     def run(self, image, model, upscale_factor, face_enhancement,
             face_strength=0.8, face_creativity=0.0, enhancement_strength=AUTO, subject_detection=AUTO,
             creativity=0, texture=0, detail=-1.0, denoise=-1.0, sharpen=-1.0, fix_compression=-1.0,
             strength=-1.0, prompt="", autoprompt=AUTO, color_preservation=AUTO):
+        model = LEGACY_LABELS.get(model, model)
         try:
             endpoint, api_model, allowed = MODELS[model]
         except KeyError:

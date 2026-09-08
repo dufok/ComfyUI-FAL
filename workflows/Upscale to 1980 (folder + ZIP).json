@@ -1,5 +1,5 @@
 {
- "id": "2bbdf7d8-9ca4-4977-955d-49d3698de164",
+ "id": "f6556101-9c1b-416c-a923-4a7a7789f22b",
  "revision": 0,
  "last_node_id": 1,
  "last_link_id": 16,
@@ -41,7 +41,7 @@
      ]
     }
    ],
-   "title": "Целевая короткая сторона (px)",
+   "title": "Target short side (px)",
    "properties": {
     "cnr_id": "comfy-core",
     "ver": "0.23.0",
@@ -131,7 +131,7 @@
      "links": null
     }
    ],
-   "title": "Папка с фото — 📁 Upload folder… или перетащить папку сюда",
+   "title": "Photo folder — 📁 Upload folder… or drop a folder here",
    "properties": {
     "aux_id": "dufok/ComfyUI-FAL",
     "ver": "0.1.0",
@@ -208,7 +208,7 @@
      "links": null
     }
    ],
-   "title": "Кому нужен апскейл? (короткая сторона < цели)",
+   "title": "Which photos need upscaling? (short side < target)",
    "properties": {
     "aux_id": "dufok/ComfyUI-FAL",
     "ver": "0.1.0",
@@ -264,7 +264,7 @@
      "links": null
     }
    ],
-   "title": "Размер исходника",
+   "title": "Source size",
    "properties": {
     "cnr_id": "comfy-core",
     "ver": "0.23.0",
@@ -350,7 +350,7 @@
      "links": null
     }
    ],
-   "title": "Фактор Topaz (кратно 0.5, 1x–4x)",
+   "title": "Topaz factor (steps of 0.5, 1x–4x)",
    "properties": {
     "cnr_id": "comfy-core",
     "ver": "0.23.0",
@@ -545,14 +545,14 @@
      ]
     }
    ],
-   "title": "Topaz Wonder 3.5 (FAL, $0.01/MP — только для images_below)",
+   "title": "Topaz Wonder 3.5 (FAL, $0.01/MP — images_below only)",
    "properties": {
     "aux_id": "dufok/ComfyUI-FAL",
     "ver": "229c61a6cf8bc8e00cbfc6b7e81235be5cf58fbf",
     "Node name for S&R": "FalTopazUpscale2026"
    },
    "widgets_values": [
-    "gen · Wonder 3.5 (лучший универсал)",
+    "gen · Wonder 3.5 (best all-round)",
     2,
     false,
     0.8,
@@ -612,7 +612,7 @@
      ]
     }
    ],
-   "title": "Подгон короткой стороны ровно в цель",
+   "title": "Match the short side to the target",
    "properties": {
     "cnr_id": "comfy-core",
     "ver": "0.23.0",
@@ -668,7 +668,7 @@
      "shape": 6
     }
    ],
-   "title": "Вернуть апскейленные на свои места",
+   "title": "Put the upscaled ones back in place",
    "properties": {
     "aux_id": "dufok/ComfyUI-FAL",
     "ver": "0.1.0",
@@ -775,7 +775,7 @@
      "links": null
     }
    ],
-   "title": "Сохранить в output/upscaled_1980 + ZIP",
+   "title": "Save to output/upscaled_1980 + ZIP",
    "properties": {
     "aux_id": "dufok/ComfyUI-FAL",
     "ver": "0.1.0",
@@ -820,7 +820,7 @@
      "links": null
     }
    ],
-   "title": "Ссылка на ZIP (остаётся в истории)",
+   "title": "ZIP link (kept in the queue history)",
    "properties": {
     "cnr_id": "comfy-core",
     "ver": "0.23.0",
@@ -844,12 +844,12 @@
    "mode": 0,
    "inputs": [],
    "outputs": [],
-   "title": "Инструкция",
+   "title": "How to use",
    "properties": {
-    "text": "КАК ПОЛЬЗОВАТЬСЯ\n1. На первой ноде нажать «📁 Upload folder…» и выбрать папку с фото на своём компьютере (или перетащить папку прямо на ноду). Фото уедут на сервер в input/<имя папки>/, папка выберется сама.\n2. Число 1980 — целевая КОРОТКАЯ сторона. Нода «✂️ Split by Short Side» отправляет в Topaz ТОЛЬКО фото с короткой стороной < 1980 — за остальные FAL не платит вообще, даже если папка смешанная (обычный Switch так не умеет: в списковом режиме он включил бы Topaz для всех).\n3. Run. Результат: output/upscaled_1980/<имя файла>_1980.jpg — все фото пересохраняются в JPEG q95, sRGB, без EXIF. На последней ноде — галерея всех кадров (стрелки/миниатюры) и кнопка «⬇ Download ZIP» со всеми файлами прогона; та же ссылка видна в «Preview as Text» и остаётся в истории.\nМОДЕЛЬ: gen · Wonder 3.5 — генеративная, восстанавливает детали на мелких и пожатых исходниках. Старая precision · Standard V2 на таком материале дорисовывает JPEG-блоки: сетка «в рогожку» на стенах и восковая кожа. face_enhancement по умолчанию ВЫКЛ — на мелких лицах он и делает воск; включай, только если лицо крупным планом. Для уже чистых больших фото лучше precision · High Fidelity V3, для рендеров — precision · CGI, для скринов с текстом — Text Refine.\nФактор Topaz считается автоматически (кратно 0.5, от 1x до 4x — предел нового API), затем короткая сторона подгоняется ровно в 1980 по Lanczos. Если исходник совсем мелкий (короткая сторона < 495 px), 4x не хватает и остаток добирается ресайзом. EXIF-поворот учитывается, HEIC (iPhone) читается, Display P3 → sRGB.\nЦена: $0.01 за мегапиксель результата — фото 1980×2640 ≈ $0.07."
+    "text": "HOW TO USE\n1. On the first node press “📁 Upload folder…” and pick a folder of photos on your own computer, or just drag the folder onto the node. The files go to input/<folder>/ on the server and the folder is selected for you.\n2. 1980 is the target SHORT side. “✂️ Split by Short Side” sends ONLY the photos below it to Topaz, so FAL is not paid a cent for the ones that are already big enough, even in a mixed folder. A plain Switch cannot do this: in list mode it would run Topaz on every photo and throw the extras away.\n3. Run. Results land in output/upscaled_1980/<name>_1980.jpg, re-encoded to JPEG q95 in sRGB without EXIF. The last node shows the whole batch as a gallery and gives you a “⬇ Download ZIP” button; the same link appears in Preview as Text and stays in the queue history.\nMODEL: gen · Wonder 3.5 is generative and rebuilds detail on small or compressed sources. The older precision · Standard V2 sharpens the JPEG blocks themselves on such photos: a crosshatch pattern on walls and waxy skin. face_enhancement is OFF by default because on small faces that pass is what makes them waxy; turn it on only for close-ups. For clean, already large photos prefer precision · High Fidelity V3, for renders precision · CGI, for screenshots with text Text Refine.\nThe Topaz factor is computed automatically in steps of 0.5, from 1x to 4x, which is the new API ceiling; the short side is then matched exactly with Lanczos. If a source is tiny, under 495 px on the short side, 4x is not enough and the rest is covered by the resize. EXIF rotation is honoured, iPhone HEIC is read, Display P3 is converted to sRGB.\nCost: $0.01 per output megapixel, so a 1980x2640 photo is about $0.07."
    },
    "widgets_values": [
-    "КАК ПОЛЬЗОВАТЬСЯ\n1. На первой ноде нажать «📁 Upload folder…» и выбрать папку с фото на своём компьютере (или перетащить папку прямо на ноду). Фото уедут на сервер в input/<имя папки>/, папка выберется сама.\n2. Число 1980 — целевая КОРОТКАЯ сторона. Нода «✂️ Split by Short Side» отправляет в Topaz ТОЛЬКО фото с короткой стороной < 1980 — за остальные FAL не платит вообще, даже если папка смешанная (обычный Switch так не умеет: в списковом режиме он включил бы Topaz для всех).\n3. Run. Результат: output/upscaled_1980/<имя файла>_1980.jpg — все фото пересохраняются в JPEG q95, sRGB, без EXIF. На последней ноде — галерея всех кадров (стрелки/миниатюры) и кнопка «⬇ Download ZIP» со всеми файлами прогона; та же ссылка видна в «Preview as Text» и остаётся в истории.\nМОДЕЛЬ: gen · Wonder 3.5 — генеративная, восстанавливает детали на мелких и пожатых исходниках. Старая precision · Standard V2 на таком материале дорисовывает JPEG-блоки: сетка «в рогожку» на стенах и восковая кожа. face_enhancement по умолчанию ВЫКЛ — на мелких лицах он и делает воск; включай, только если лицо крупным планом. Для уже чистых больших фото лучше precision · High Fidelity V3, для рендеров — precision · CGI, для скринов с текстом — Text Refine.\nФактор Topaz считается автоматически (кратно 0.5, от 1x до 4x — предел нового API), затем короткая сторона подгоняется ровно в 1980 по Lanczos. Если исходник совсем мелкий (короткая сторона < 495 px), 4x не хватает и остаток добирается ресайзом. EXIF-поворот учитывается, HEIC (iPhone) читается, Display P3 → sRGB.\nЦена: $0.01 за мегапиксель результата — фото 1980×2640 ≈ $0.07."
+    "HOW TO USE\n1. On the first node press “📁 Upload folder…” and pick a folder of photos on your own computer, or just drag the folder onto the node. The files go to input/<folder>/ on the server and the folder is selected for you.\n2. 1980 is the target SHORT side. “✂️ Split by Short Side” sends ONLY the photos below it to Topaz, so FAL is not paid a cent for the ones that are already big enough, even in a mixed folder. A plain Switch cannot do this: in list mode it would run Topaz on every photo and throw the extras away.\n3. Run. Results land in output/upscaled_1980/<name>_1980.jpg, re-encoded to JPEG q95 in sRGB without EXIF. The last node shows the whole batch as a gallery and gives you a “⬇ Download ZIP” button; the same link appears in Preview as Text and stays in the queue history.\nMODEL: gen · Wonder 3.5 is generative and rebuilds detail on small or compressed sources. The older precision · Standard V2 sharpens the JPEG blocks themselves on such photos: a crosshatch pattern on walls and waxy skin. face_enhancement is OFF by default because on small faces that pass is what makes them waxy; turn it on only for close-ups. For clean, already large photos prefer precision · High Fidelity V3, for renders precision · CGI, for screenshots with text Text Refine.\nThe Topaz factor is computed automatically in steps of 0.5, from 1x to 4x, which is the new API ceiling; the short side is then matched exactly with Lanczos. If a source is tiny, under 495 px on the short side, 4x is not enough and the rest is covered by the resize. EXIF rotation is honoured, iPhone HEIC is read, Display P3 is converted to sRGB.\nCost: $0.01 per output megapixel, so a 1980x2640 photo is about $0.07."
    ],
    "color": "#432",
    "bgcolor": "#653"

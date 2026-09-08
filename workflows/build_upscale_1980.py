@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates "Upscale to 1980 (folder + ZIP).json" — the example graph for this pack.
+"""Generates "Upscale to 1980 (folder + ZIP).json" — the example graph for the folder nodes.
 
     photos (folder upload) ─┬─► Split by Short Side ─► GetImageSize ─► factor ─► Topaz (FAL) ─► resize ─┐
                             │          │ index_below                                                     │
@@ -20,24 +20,26 @@ FAL = {"aux_id": "dufok/ComfyUI-FAL", "ver": "229c61a6cf8bc8e00cbfc6b7e81235be5c
 OURS = {"aux_id": "dufok/ComfyUI-FAL", "ver": "0.1.0"}
 
 NOTE = (
-    "КАК ПОЛЬЗОВАТЬСЯ\n"
-    "1. На первой ноде нажать «📁 Upload folder…» и выбрать папку с фото на своём компьютере "
-    "(или перетащить папку прямо на ноду). Фото уедут на сервер в input/<имя папки>/, папка выберется сама.\n"
-    "2. Число 1980 — целевая КОРОТКАЯ сторона. Нода «✂️ Split by Short Side» отправляет в Topaz ТОЛЬКО фото "
-    "с короткой стороной < 1980 — за остальные FAL не платит вообще, даже если папка смешанная "
-    "(обычный Switch так не умеет: в списковом режиме он включил бы Topaz для всех).\n"
-    "3. Run. Результат: output/upscaled_1980/<имя файла>_1980.jpg — все фото пересохраняются в JPEG q95, sRGB, "
-    "без EXIF. На последней ноде — галерея всех кадров (стрелки/миниатюры) и кнопка «⬇ Download ZIP» "
-    "со всеми файлами прогона; та же ссылка видна в «Preview as Text» и остаётся в истории.\n"
-    "МОДЕЛЬ: gen · Wonder 3.5 — генеративная, восстанавливает детали на мелких и пожатых исходниках. "
-    "Старая precision · Standard V2 на таком материале дорисовывает JPEG-блоки: сетка «в рогожку» на "
-    "стенах и восковая кожа. face_enhancement по умолчанию ВЫКЛ — на мелких лицах он и делает воск; "
-    "включай, только если лицо крупным планом. Для уже чистых больших фото лучше precision · High Fidelity V3, "
-    "для рендеров — precision · CGI, для скринов с текстом — Text Refine.\n"
-    "Фактор Topaz считается автоматически (кратно 0.5, от 1x до 4x — предел нового API), затем короткая сторона "
-    "подгоняется ровно в 1980 по Lanczos. Если исходник совсем мелкий (короткая сторона < 495 px), 4x не хватает "
-    "и остаток добирается ресайзом. EXIF-поворот учитывается, HEIC (iPhone) читается, Display P3 → sRGB.\n"
-    "Цена: $0.01 за мегапиксель результата — фото 1980×2640 ≈ $0.07."
+    "HOW TO USE\n"
+    "1. On the first node press \u201c\U0001F4C1 Upload folder\u2026\u201d and pick a folder of photos on your own "
+    "computer, or just drag the folder onto the node. The files go to input/<folder>/ on the server and the "
+    "folder is selected for you.\n"
+    "2. 1980 is the target SHORT side. \u201c\u2702\ufe0f Split by Short Side\u201d sends ONLY the photos below it "
+    "to Topaz, so FAL is not paid a cent for the ones that are already big enough, even in a mixed folder. "
+    "A plain Switch cannot do this: in list mode it would run Topaz on every photo and throw the extras away.\n"
+    "3. Run. Results land in output/upscaled_1980/<name>_1980.jpg, re-encoded to JPEG q95 in sRGB without EXIF. "
+    "The last node shows the whole batch as a gallery and gives you a \u201c\u2b07 Download ZIP\u201d button; the "
+    "same link appears in Preview as Text and stays in the queue history.\n"
+    "MODEL: gen \u00b7 Wonder 3.5 is generative and rebuilds detail on small or compressed sources. The older "
+    "precision \u00b7 Standard V2 sharpens the JPEG blocks themselves on such photos: a crosshatch pattern on "
+    "walls and waxy skin. face_enhancement is OFF by default because on small faces that pass is what makes "
+    "them waxy; turn it on only for close-ups. For clean, already large photos prefer precision \u00b7 High "
+    "Fidelity V3, for renders precision \u00b7 CGI, for screenshots with text Text Refine.\n"
+    "The Topaz factor is computed automatically in steps of 0.5, from 1x to 4x, which is the new API ceiling; "
+    "the short side is then matched exactly with Lanczos. If a source is tiny, under 495 px on the short side, "
+    "4x is not enough and the rest is covered by the resize. EXIF rotation is honoured, iPhone HEIC is read, "
+    "Display P3 is converted to sRGB.\n"
+    "Cost: $0.01 per output megapixel, so a 1980x2640 photo is about $0.07."
 )
 
 
@@ -70,46 +72,46 @@ def node(nid, typ, title, pos, size, inputs, outputs, widgets, props, **extra):
 
 
 nodes = [
-    node("T", "PrimitiveInt", "Целевая короткая сторона (px)", (80, 80), (270, 82),
+    node("T", "PrimitiveInt", "Target short side (px)", (80, 80), (270, 82),
          [w("value", "INT")], [out("INT", "INT")], [1980, "fixed"], CORE),
-    node("L", "FolderIOLoadImages", "Папка с фото — 📁 Upload folder… или перетащить папку сюда", (80, 250), (440, 200),
+    node("L", "FolderIOLoadImages", "Photo folder — 📁 Upload folder… or drop a folder here", (80, 250), (440, 200),
          [w("folder", "COMBO"), w("sort_by", "COMBO"), w("start_index", "INT"), w("max_images", "INT")],
          [out("images", "IMAGE", True), out("filenames", "STRING", True), out("count", "INT")],
          ["photos", "name", 0, 0], OURS),
-    node("SP", "FolderIOSplitByShortSide", "Кому нужен апскейл? (короткая сторона < цели)", (620, 250), (380, 120),
+    node("SP", "FolderIOSplitByShortSide", "Which photos need upscaling? (short side < target)", (620, 250), (380, 120),
          [sock("images", "IMAGE"), w("min_short_side", "INT")],
          [out("images_below", "IMAGE", True), out("index_below", "INT", True), out("count_below", "INT"), out("count_ok", "INT")],
          [1980], OURS),
-    node("S", "GetImageSize", "Размер исходника", (1100, 80), (140, 66),
+    node("S", "GetImageSize", "Source size", (1100, 80), (140, 66),
          [sock("image", "IMAGE")], [out("width", "INT"), out("height", "INT"), out("batch_size", "INT")], [], CORE),
-    node("F", "ComfyMathExpression", "Фактор Topaz (кратно 0.5, 1x–4x)", (1340, 80), (400, 200),
+    node("F", "ComfyMathExpression", "Topaz factor (steps of 0.5, 1x–4x)", (1340, 80), (400, 200),
          [sock("values.a", "FLOAT,INT,BOOLEAN", label="a"), sock("values.b", "FLOAT,INT,BOOLEAN", True, "b"),
           sock("values.c", "FLOAT,INT,BOOLEAN", True, "c"), sock("values.d", "FLOAT,INT,BOOLEAN", True, "d"),
           w("expression", "STRING")],
          [out("FLOAT", "FLOAT"), out("INT", "INT"), {"localized_name": "BOOL", "name": "BOOL", "type": "BOOLEAN", "links": []}],
          ["max(1, min(4, ceil(c / min(a, b) * 2) / 2))"], CORE),
-    node("TP", "FalTopazUpscale2026", "Topaz Wonder 3.5 (FAL, $0.01/MP — только для images_below)", (1840, 80), (470, 480),
+    node("TP", "FalTopazUpscale2026", "Topaz Wonder 3.5 (FAL, $0.01/MP — images_below only)", (1840, 80), (470, 480),
          [sock("image", "IMAGE"), w("model", "COMBO"), w("upscale_factor", "FLOAT"), w("face_enhancement", "BOOLEAN"),
           w("face_strength", "FLOAT"), w("face_creativity", "FLOAT"), w("enhancement_strength", "COMBO"),
           w("subject_detection", "COMBO"), w("creativity", "INT"), w("texture", "INT"), w("detail", "FLOAT"),
           w("denoise", "FLOAT"), w("sharpen", "FLOAT"), w("fix_compression", "FLOAT"), w("strength", "FLOAT"),
           w("prompt", "STRING"), w("autoprompt", "COMBO"), w("color_preservation", "COMBO")],
          [out("image", "IMAGE")],
-         ["gen · Wonder 3.5 (лучший универсал)", 2, False, 0.8, 0.0, "auto", "auto", 0, 0,
+         ["gen · Wonder 3.5 (best all-round)", 2, False, 0.8, 0.0, "auto", "auto", 0, 0,
           -1.0, -1.0, -1.0, -1.0, -1.0, "", "auto", "auto"], FAL),
-    node("U", "ResizeImagesByShorterEdge", "Подгон короткой стороны ровно в цель", (2410, 80), (310, 58),
+    node("U", "ResizeImagesByShorterEdge", "Match the short side to the target", (2410, 80), (310, 58),
          [sock("images", "IMAGE"), w("shorter_edge", "INT")], [out("images", "IMAGE")], [512], CORE),
-    node("M", "FolderIOMergeSubset", "Вернуть апскейленные на свои места", (2820, 250), (330, 90),
+    node("M", "FolderIOMergeSubset", "Put the upscaled ones back in place", (2820, 250), (330, 90),
          [sock("images", "IMAGE"), sock("index", "INT"), sock("replacements", "IMAGE", True)],
          [out("images", "IMAGE", True)], [], OURS),
-    node("O", "FolderIOSaveZip", "Сохранить в output/upscaled_1980 + ZIP", (3250, 250), (400, 320),
+    node("O", "FolderIOSaveZip", "Save to output/upscaled_1980 + ZIP", (3250, 250), (400, 320),
          [sock("images", "IMAGE"), w("folder", "STRING"), w("format", "COMBO"), w("quality", "INT"), w("suffix", "STRING"),
           w("zip_name", "STRING"), w("overwrite", "BOOLEAN"), sock("filenames", "STRING", True)],
          [out("download_url", "STRING"), out("saved_files", "STRING")],
          ["upscaled_1980", "jpg", 95, "_1980", "", True], OURS),
-    node("PA", "PreviewAny", "Ссылка на ZIP (остаётся в истории)", (3750, 250), (400, 120),
+    node("PA", "PreviewAny", "ZIP link (kept in the queue history)", (3750, 250), (400, 120),
          [sock("source", "*")], [out("STRING", "STRING")], [], CORE),
-    node(1, "Note", "Инструкция", (80, -420), (1100, 340), [], [], [NOTE], {}, color="#432", bgcolor="#653"),
+    node(1, "Note", "How to use", (80, -420), (1100, 340), [], [], [NOTE], {}, color="#432", bgcolor="#653"),
 ]
 nodes[-1]["properties"] = {"text": NOTE}
 by_id = {n["id"]: n for n in nodes}
