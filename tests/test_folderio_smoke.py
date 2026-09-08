@@ -120,27 +120,34 @@ assert zipfile.ZipFile(os.path.join(OUT, "twice", "bundle (1).zip")).namelist() 
 assert r7["ui"]["zip"][0]["url"].startswith("/view?filename=bundle%20%281%29.zip")
 assert not any(f.endswith(".part") for f in os.listdir(os.path.join(OUT, "twice")))
 
-# --- split / merge (per-photo gating): iphone is 24x32, the rest 48x64 / 64x48
+# --- split / merge (per-photo gating). The small fixture is the HEIC one when pillow-heif is
+# installed and a plain 32x24 PNG otherwise, so the test works either way.
 Split = pack.NODE_CLASS_MAPPINGS["FolderIOSplitByShortSide"]
 Merge = pack.NODE_CLASS_MAPPINGS["FolderIOMergeSubset"]
+if not mod.HEIF_OK:
+    Image.new("RGB", (32, 24), (10, 10, 200)).save(os.path.join(d, "aa_small.png"))
+    imgs, stems, n = Load().load("smoke", "name", 0, 0)
+small = min(range(len(imgs)), key=lambda i: min(imgs[i].shape[1], imgs[i].shape[2]))
 below, idx, nb, nok = Split().split(imgs, [40])
-assert idx == [0] and nb == 1 and nok == 4 and tuple(below[0].shape) == (1, 24, 32, 3), (idx, nb, nok)
+assert idx == [small] and nb == 1 and nok == len(imgs) - 1, (idx, nb, nok, stems)
+assert tuple(below[0].shape) == (1, 24, 32, 3), below[0].shape
 m = Merge()
 assert m.check_lazy_status(imgs, idx, (None,)) == ["replacements"]   # needs the upscaled list
 assert m.check_lazy_status(imgs, [], (None,)) == []                   # nothing to do -> upscaler never runs
 assert m.check_lazy_status(imgs, idx, [below[0]]) == []               # already evaluated
 big = torch.zeros((1, 100, 100, 3))
 (merged,) = m.merge(imgs, idx, [big])
-assert len(merged) == 5 and tuple(merged[0].shape) == (1, 100, 100, 3) and merged[1] is imgs[1]
+assert len(merged) == len(imgs) and tuple(merged[small].shape) == (1, 100, 100, 3)
+assert all(merged[i] is imgs[i] for i in range(len(imgs)) if i != small)
 (passthru,) = m.merge(imgs, [], (None,))
-assert len(passthru) == 5 and all(a is b for a, b in zip(passthru, imgs))
+assert len(passthru) == len(imgs) and all(a is b for a, b in zip(passthru, imgs))
 try:
     m.merge(imgs, [0, 1], [big])
     raise SystemExit("expected a count-mismatch error")
 except ValueError as e:
     print("mismatch ->", e)
 below2, idx2, nb2, nok2 = Split().split(imgs, [10])
-assert below2 == [] and idx2 == [] and nb2 == 0 and nok2 == 5
+assert below2 == [] and idx2 == [] and nb2 == 0 and nok2 == len(imgs)
 
 # --- ICC: an embedded sRGB profile passes through with pixels intact
 from PIL import ImageCms  # noqa: E402
@@ -151,10 +158,14 @@ px = [round(v * 255) for v in imgs3[stems3.index("icc")][0, 0, 0].tolist()]
 assert px == [120, 60, 30], px
 
 # --- HEIC present but pillow-heif "missing": run still succeeds and the warning reaches the UI
-mod.HEIF_OK = False
-r8 = Load().load("smoke", "name", 0, 0)
-assert isinstance(r8, dict) and "iphone.heic" in r8["ui"]["folderio_warning"][0], r8.get("ui")
-assert "iphone" not in r8["result"][1]
-mod.HEIF_OK = True
+if os.path.exists(os.path.join(d, "iphone.heic")):
+    was = mod.HEIF_OK
+    mod.HEIF_OK = False
+    r8 = Load().load("smoke", "name", 0, 0)
+    assert isinstance(r8, dict) and "iphone.heic" in r8["ui"]["folderio_warning"][0], r8.get("ui")
+    assert "iphone" not in r8["result"][1]
+    mod.HEIF_OK = was
+else:
+    print("(pillow-heif absent — HEIC fixtures skipped)")
 
 print("SMOKE OK")

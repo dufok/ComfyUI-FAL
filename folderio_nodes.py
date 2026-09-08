@@ -55,6 +55,8 @@ try:  # optional: iPhone HEIC. `pip install pillow-heif`
         pass
     HEIF_OK = True
 except Exception:  # noqa: BLE001 — not installed: HEIC files are reported as skipped
+    # Note for Docker setups: installing this with `pip install` *inside a running container* is
+    # lost the next time the container is recreated (compose up after an edit). Put it in the image.
     HEIF_OK = False
 
 try:  # littlecms ships with the standard Pillow wheels; guarded anyway
