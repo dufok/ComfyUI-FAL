@@ -1,0 +1,1000 @@
+{
+ "id": "2bbdf7d8-9ca4-4977-955d-49d3698de164",
+ "revision": 0,
+ "last_node_id": 1,
+ "last_link_id": 16,
+ "nodes": [
+  {
+   "id": "T",
+   "type": "PrimitiveInt",
+   "pos": [
+    80,
+    80
+   ],
+   "size": [
+    270,
+    82
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "value",
+     "name": "value",
+     "type": "INT",
+     "widget": {
+      "name": "value"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "INT",
+     "name": "INT",
+     "type": "INT",
+     "links": [
+      1,
+      2,
+      3
+     ]
+    }
+   ],
+   "title": "Целевая короткая сторона (px)",
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.23.0",
+    "Node name for S&R": "PrimitiveInt"
+   },
+   "widgets_values": [
+    1980,
+    "fixed"
+   ]
+  },
+  {
+   "id": "L",
+   "type": "FolderIOLoadImages",
+   "pos": [
+    80,
+    250
+   ],
+   "size": [
+    440,
+    200
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "folder",
+     "name": "folder",
+     "type": "COMBO",
+     "widget": {
+      "name": "folder"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "sort_by",
+     "name": "sort_by",
+     "type": "COMBO",
+     "widget": {
+      "name": "sort_by"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "start_index",
+     "name": "start_index",
+     "type": "INT",
+     "widget": {
+      "name": "start_index"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "max_images",
+     "name": "max_images",
+     "type": "INT",
+     "widget": {
+      "name": "max_images"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      4,
+      5
+     ],
+     "shape": 6
+    },
+    {
+     "localized_name": "filenames",
+     "name": "filenames",
+     "type": "STRING",
+     "links": [
+      6
+     ],
+     "shape": 6
+    },
+    {
+     "localized_name": "count",
+     "name": "count",
+     "type": "INT",
+     "links": null
+    }
+   ],
+   "title": "Папка с фото — 📁 Upload folder… или перетащить папку сюда",
+   "properties": {
+    "aux_id": "dufok/ComfyUI-FAL",
+    "ver": "0.1.0",
+    "Node name for S&R": "FolderIOLoadImages"
+   },
+   "widgets_values": [
+    "photos",
+    "name",
+    0,
+    0
+   ]
+  },
+  {
+   "id": "SP",
+   "type": "FolderIOSplitByShortSide",
+   "pos": [
+    620,
+    250
+   ],
+   "size": [
+    380,
+    120
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "link": 4
+    },
+    {
+     "localized_name": "min_short_side",
+     "name": "min_short_side",
+     "type": "INT",
+     "widget": {
+      "name": "min_short_side"
+     },
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "images_below",
+     "name": "images_below",
+     "type": "IMAGE",
+     "links": [
+      7,
+      8
+     ],
+     "shape": 6
+    },
+    {
+     "localized_name": "index_below",
+     "name": "index_below",
+     "type": "INT",
+     "links": [
+      9
+     ],
+     "shape": 6
+    },
+    {
+     "localized_name": "count_below",
+     "name": "count_below",
+     "type": "INT",
+     "links": null
+    },
+    {
+     "localized_name": "count_ok",
+     "name": "count_ok",
+     "type": "INT",
+     "links": null
+    }
+   ],
+   "title": "Кому нужен апскейл? (короткая сторона < цели)",
+   "properties": {
+    "aux_id": "dufok/ComfyUI-FAL",
+    "ver": "0.1.0",
+    "Node name for S&R": "FolderIOSplitByShortSide"
+   },
+   "widgets_values": [
+    1980
+   ]
+  },
+  {
+   "id": "S",
+   "type": "GetImageSize",
+   "pos": [
+    1100,
+    80
+   ],
+   "size": [
+    140,
+    66
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "image",
+     "name": "image",
+     "type": "IMAGE",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "width",
+     "name": "width",
+     "type": "INT",
+     "links": [
+      10
+     ]
+    },
+    {
+     "localized_name": "height",
+     "name": "height",
+     "type": "INT",
+     "links": [
+      11
+     ]
+    },
+    {
+     "localized_name": "batch_size",
+     "name": "batch_size",
+     "type": "INT",
+     "links": null
+    }
+   ],
+   "title": "Размер исходника",
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.23.0",
+    "Node name for S&R": "GetImageSize"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": "F",
+   "type": "ComfyMathExpression",
+   "pos": [
+    1340,
+    80
+   ],
+   "size": [
+    400,
+    200
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "values.a",
+     "name": "values.a",
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": 10,
+     "label": "a"
+    },
+    {
+     "localized_name": "values.b",
+     "name": "values.b",
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": 11,
+     "shape": 7,
+     "label": "b"
+    },
+    {
+     "localized_name": "values.c",
+     "name": "values.c",
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": 2,
+     "shape": 7,
+     "label": "c"
+    },
+    {
+     "localized_name": "values.d",
+     "name": "values.d",
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": null,
+     "shape": 7,
+     "label": "d"
+    },
+    {
+     "localized_name": "expression",
+     "name": "expression",
+     "type": "STRING",
+     "widget": {
+      "name": "expression"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "FLOAT",
+     "name": "FLOAT",
+     "type": "FLOAT",
+     "links": [
+      12
+     ]
+    },
+    {
+     "localized_name": "INT",
+     "name": "INT",
+     "type": "INT",
+     "links": null
+    },
+    {
+     "localized_name": "BOOL",
+     "name": "BOOL",
+     "type": "BOOLEAN",
+     "links": null
+    }
+   ],
+   "title": "Фактор Topaz (кратно 0.5, 1x–4x)",
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.23.0",
+    "Node name for S&R": "ComfyMathExpression"
+   },
+   "widgets_values": [
+    "max(1, min(4, ceil(c / min(a, b) * 2) / 2))"
+   ]
+  },
+  {
+   "id": "TP",
+   "type": "FalTopazUpscale2026",
+   "pos": [
+    1840,
+    80
+   ],
+   "size": [
+    470,
+    480
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "image",
+     "name": "image",
+     "type": "IMAGE",
+     "link": 8
+    },
+    {
+     "localized_name": "model",
+     "name": "model",
+     "type": "COMBO",
+     "widget": {
+      "name": "model"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "upscale_factor",
+     "name": "upscale_factor",
+     "type": "FLOAT",
+     "widget": {
+      "name": "upscale_factor"
+     },
+     "link": 12
+    },
+    {
+     "localized_name": "face_enhancement",
+     "name": "face_enhancement",
+     "type": "BOOLEAN",
+     "widget": {
+      "name": "face_enhancement"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "face_strength",
+     "name": "face_strength",
+     "type": "FLOAT",
+     "widget": {
+      "name": "face_strength"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "face_creativity",
+     "name": "face_creativity",
+     "type": "FLOAT",
+     "widget": {
+      "name": "face_creativity"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "enhancement_strength",
+     "name": "enhancement_strength",
+     "type": "COMBO",
+     "widget": {
+      "name": "enhancement_strength"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "subject_detection",
+     "name": "subject_detection",
+     "type": "COMBO",
+     "widget": {
+      "name": "subject_detection"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "creativity",
+     "name": "creativity",
+     "type": "INT",
+     "widget": {
+      "name": "creativity"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "texture",
+     "name": "texture",
+     "type": "INT",
+     "widget": {
+      "name": "texture"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "detail",
+     "name": "detail",
+     "type": "FLOAT",
+     "widget": {
+      "name": "detail"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "denoise",
+     "name": "denoise",
+     "type": "FLOAT",
+     "widget": {
+      "name": "denoise"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "sharpen",
+     "name": "sharpen",
+     "type": "FLOAT",
+     "widget": {
+      "name": "sharpen"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "fix_compression",
+     "name": "fix_compression",
+     "type": "FLOAT",
+     "widget": {
+      "name": "fix_compression"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "strength",
+     "name": "strength",
+     "type": "FLOAT",
+     "widget": {
+      "name": "strength"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "prompt",
+     "name": "prompt",
+     "type": "STRING",
+     "widget": {
+      "name": "prompt"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "autoprompt",
+     "name": "autoprompt",
+     "type": "COMBO",
+     "widget": {
+      "name": "autoprompt"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "color_preservation",
+     "name": "color_preservation",
+     "type": "COMBO",
+     "widget": {
+      "name": "color_preservation"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "image",
+     "name": "image",
+     "type": "IMAGE",
+     "links": [
+      13
+     ]
+    }
+   ],
+   "title": "Topaz Wonder 3.5 (FAL, $0.01/MP — только для images_below)",
+   "properties": {
+    "aux_id": "dufok/ComfyUI-FAL",
+    "ver": "229c61a6cf8bc8e00cbfc6b7e81235be5cf58fbf",
+    "Node name for S&R": "FalTopazUpscale2026"
+   },
+   "widgets_values": [
+    "gen · Wonder 3.5 (лучший универсал)",
+    2,
+    false,
+    0.8,
+    0.0,
+    "auto",
+    "auto",
+    0,
+    0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    "",
+    "auto",
+    "auto"
+   ]
+  },
+  {
+   "id": "U",
+   "type": "ResizeImagesByShorterEdge",
+   "pos": [
+    2410,
+    80
+   ],
+   "size": [
+    310,
+    58
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "link": 13
+    },
+    {
+     "localized_name": "shorter_edge",
+     "name": "shorter_edge",
+     "type": "INT",
+     "widget": {
+      "name": "shorter_edge"
+     },
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      14
+     ]
+    }
+   ],
+   "title": "Подгон короткой стороны ровно в цель",
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.23.0",
+    "Node name for S&R": "ResizeImagesByShorterEdge"
+   },
+   "widgets_values": [
+    512
+   ]
+  },
+  {
+   "id": "M",
+   "type": "FolderIOMergeSubset",
+   "pos": [
+    2820,
+    250
+   ],
+   "size": [
+    330,
+    90
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "link": 5
+    },
+    {
+     "localized_name": "index",
+     "name": "index",
+     "type": "INT",
+     "link": 9
+    },
+    {
+     "localized_name": "replacements",
+     "name": "replacements",
+     "type": "IMAGE",
+     "link": 14,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      15
+     ],
+     "shape": 6
+    }
+   ],
+   "title": "Вернуть апскейленные на свои места",
+   "properties": {
+    "aux_id": "dufok/ComfyUI-FAL",
+    "ver": "0.1.0",
+    "Node name for S&R": "FolderIOMergeSubset"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": "O",
+   "type": "FolderIOSaveZip",
+   "pos": [
+    3250,
+    250
+   ],
+   "size": [
+    400,
+    320
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "link": 15
+    },
+    {
+     "localized_name": "folder",
+     "name": "folder",
+     "type": "STRING",
+     "widget": {
+      "name": "folder"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "format",
+     "name": "format",
+     "type": "COMBO",
+     "widget": {
+      "name": "format"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "quality",
+     "name": "quality",
+     "type": "INT",
+     "widget": {
+      "name": "quality"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "suffix",
+     "name": "suffix",
+     "type": "STRING",
+     "widget": {
+      "name": "suffix"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "zip_name",
+     "name": "zip_name",
+     "type": "STRING",
+     "widget": {
+      "name": "zip_name"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "overwrite",
+     "name": "overwrite",
+     "type": "BOOLEAN",
+     "widget": {
+      "name": "overwrite"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "filenames",
+     "name": "filenames",
+     "type": "STRING",
+     "link": 6,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "download_url",
+     "name": "download_url",
+     "type": "STRING",
+     "links": [
+      16
+     ]
+    },
+    {
+     "localized_name": "saved_files",
+     "name": "saved_files",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "Сохранить в output/upscaled_1980 + ZIP",
+   "properties": {
+    "aux_id": "dufok/ComfyUI-FAL",
+    "ver": "0.1.0",
+    "Node name for S&R": "FolderIOSaveZip"
+   },
+   "widgets_values": [
+    "upscaled_1980",
+    "jpg",
+    95,
+    "_1980",
+    "",
+    true
+   ]
+  },
+  {
+   "id": "PA",
+   "type": "PreviewAny",
+   "pos": [
+    3750,
+    250
+   ],
+   "size": [
+    400,
+    120
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "source",
+     "name": "source",
+     "type": "*",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "STRING",
+     "name": "STRING",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "Ссылка на ZIP (остаётся в истории)",
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.23.0",
+    "Node name for S&R": "PreviewAny"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 1,
+   "type": "Note",
+   "pos": [
+    80,
+    -420
+   ],
+   "size": [
+    1100,
+    340
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "title": "Инструкция",
+   "properties": {
+    "text": "КАК ПОЛЬЗОВАТЬСЯ\n1. На первой ноде нажать «📁 Upload folder…» и выбрать папку с фото на своём компьютере (или перетащить папку прямо на ноду). Фото уедут на сервер в input/<имя папки>/, папка выберется сама.\n2. Число 1980 — целевая КОРОТКАЯ сторона. Нода «✂️ Split by Short Side» отправляет в Topaz ТОЛЬКО фото с короткой стороной < 1980 — за остальные FAL не платит вообще, даже если папка смешанная (обычный Switch так не умеет: в списковом режиме он включил бы Topaz для всех).\n3. Run. Результат: output/upscaled_1980/<имя файла>_1980.jpg — все фото пересохраняются в JPEG q95, sRGB, без EXIF. На последней ноде — галерея всех кадров (стрелки/миниатюры) и кнопка «⬇ Download ZIP» со всеми файлами прогона; та же ссылка видна в «Preview as Text» и остаётся в истории.\nМОДЕЛЬ: gen · Wonder 3.5 — генеративная, восстанавливает детали на мелких и пожатых исходниках. Старая precision · Standard V2 на таком материале дорисовывает JPEG-блоки: сетка «в рогожку» на стенах и восковая кожа. face_enhancement по умолчанию ВЫКЛ — на мелких лицах он и делает воск; включай, только если лицо крупным планом. Для уже чистых больших фото лучше precision · High Fidelity V3, для рендеров — precision · CGI, для скринов с текстом — Text Refine.\nФактор Topaz считается автоматически (кратно 0.5, от 1x до 4x — предел нового API), затем короткая сторона подгоняется ровно в 1980 по Lanczos. Если исходник совсем мелкий (короткая сторона < 495 px), 4x не хватает и остаток добирается ресайзом. EXIF-поворот учитывается, HEIC (iPhone) читается, Display P3 → sRGB.\nЦена: $0.01 за мегапиксель результата — фото 1980×2640 ≈ $0.07."
+   },
+   "widgets_values": [
+    "КАК ПОЛЬЗОВАТЬСЯ\n1. На первой ноде нажать «📁 Upload folder…» и выбрать папку с фото на своём компьютере (или перетащить папку прямо на ноду). Фото уедут на сервер в input/<имя папки>/, папка выберется сама.\n2. Число 1980 — целевая КОРОТКАЯ сторона. Нода «✂️ Split by Short Side» отправляет в Topaz ТОЛЬКО фото с короткой стороной < 1980 — за остальные FAL не платит вообще, даже если папка смешанная (обычный Switch так не умеет: в списковом режиме он включил бы Topaz для всех).\n3. Run. Результат: output/upscaled_1980/<имя файла>_1980.jpg — все фото пересохраняются в JPEG q95, sRGB, без EXIF. На последней ноде — галерея всех кадров (стрелки/миниатюры) и кнопка «⬇ Download ZIP» со всеми файлами прогона; та же ссылка видна в «Preview as Text» и остаётся в истории.\nМОДЕЛЬ: gen · Wonder 3.5 — генеративная, восстанавливает детали на мелких и пожатых исходниках. Старая precision · Standard V2 на таком материале дорисовывает JPEG-блоки: сетка «в рогожку» на стенах и восковая кожа. face_enhancement по умолчанию ВЫКЛ — на мелких лицах он и делает воск; включай, только если лицо крупным планом. Для уже чистых больших фото лучше precision · High Fidelity V3, для рендеров — precision · CGI, для скринов с текстом — Text Refine.\nФактор Topaz считается автоматически (кратно 0.5, от 1x до 4x — предел нового API), затем короткая сторона подгоняется ровно в 1980 по Lanczos. Если исходник совсем мелкий (короткая сторона < 495 px), 4x не хватает и остаток добирается ресайзом. EXIF-поворот учитывается, HEIC (iPhone) читается, Display P3 → sRGB.\nЦена: $0.01 за мегапиксель результата — фото 1980×2640 ≈ $0.07."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  }
+ ],
+ "links": [
+  [
+   1,
+   "T",
+   0,
+   "SP",
+   1,
+   "INT"
+  ],
+  [
+   2,
+   "T",
+   0,
+   "F",
+   2,
+   "INT"
+  ],
+  [
+   3,
+   "T",
+   0,
+   "U",
+   1,
+   "INT"
+  ],
+  [
+   4,
+   "L",
+   0,
+   "SP",
+   0,
+   "IMAGE"
+  ],
+  [
+   5,
+   "L",
+   0,
+   "M",
+   0,
+   "IMAGE"
+  ],
+  [
+   6,
+   "L",
+   1,
+   "O",
+   7,
+   "STRING"
+  ],
+  [
+   7,
+   "SP",
+   0,
+   "S",
+   0,
+   "IMAGE"
+  ],
+  [
+   8,
+   "SP",
+   0,
+   "TP",
+   0,
+   "IMAGE"
+  ],
+  [
+   9,
+   "SP",
+   1,
+   "M",
+   1,
+   "INT"
+  ],
+  [
+   10,
+   "S",
+   0,
+   "F",
+   0,
+   "INT"
+  ],
+  [
+   11,
+   "S",
+   1,
+   "F",
+   1,
+   "INT"
+  ],
+  [
+   12,
+   "F",
+   0,
+   "TP",
+   2,
+   "FLOAT"
+  ],
+  [
+   13,
+   "TP",
+   0,
+   "U",
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   "U",
+   0,
+   "M",
+   2,
+   "IMAGE"
+  ],
+  [
+   15,
+   "M",
+   0,
+   "O",
+   0,
+   "IMAGE"
+  ],
+  [
+   16,
+   "O",
+   0,
+   "PA",
+   0,
+   "STRING"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.6,
+   "offset": [
+    40,
+    380
+   ]
+  }
+ },
+ "version": 0.4
+}

@@ -1,10 +1,15 @@
 # ComfyUI-FAL
 
 **FAL nodes ComfyUI doesn't have yet** — image→3D (Tripo / Hunyuan3D / TRELLIS, **no local GPU**),
-Bria background removal, and an **Image Edit bar** (object removal, erasers, mask inpaint, prompt
-edit, upscalers, outpaint — the newest FAL models, prices right in the node names), plus a
-**model-catalog registry** and **new-model checker** that no other FAL pack ships. Everything is
-browsable in the node tree under the **`FAL/`** category.
+Bria background removal, the **whole 2026 Topaz family in one gated node**, and an **Image Edit bar**
+(object removal, erasers, mask inpaint, prompt edit, upscalers, outpaint — the newest FAL models,
+prices right in the node names), plus a **model-catalog registry** and **new-model checker** that no
+other FAL pack ships. Everything is browsable in the node tree under the **`FAL/`** category.
+
+It also ships a small **folder-IO bar** under `image/folder`: upload a folder of photos straight from
+the browser, run the graph once per photo, and download every result as a single ZIP. Those four
+nodes make no API calls and need no key — they are here because batch photo work is what the FAL
+upscalers are actually used for.
 
 Built on [FAL](https://fal.ai); one `FAL_KEY`, pay-as-you-go, all heavy compute is in the cloud.
 
@@ -192,6 +197,51 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | FAL Finish — Color Correction | `fal-ai/post-processing/color-correction` | temp/contrast/sat/brightness/gamma | $0.001 |
 | FAL Finish — Sharpen | `fal-ai/post-processing/sharpen` | basic/smart/CAS | $0.001 |
 
+### `image/folder` — a folder of photos in, one ZIP out (no FAL key needed)
+
+| Node | What it does |
+|---|---|
+| 📁 Load Images (upload folder) | *Upload folder… / Upload files…* buttons, or drop a folder onto the node: the files go to `input/<folder>/` through the stock `/upload/image` endpoint, one request per file (so proxies with small body caps are fine), and the folder is then selected on the node. Loads every photo as an IMAGE **list**, plus the original file stems and a count. EXIF orientation applied, embedded ICC (Display P3 phone shots) converted to sRGB, HEIC/HEIF/AVIF when `pillow-heif` is installed. |
+| ✂️ Split by Short Side | Hands out only the photos whose short side is below the target, plus their indices. |
+| 🔀 Merge Subset (by index) | Puts the processed photos back in place. `replacements` is a **lazy** input. |
+| 💾 Save Images + ZIP | Writes `output/<folder>/<stem><suffix>.<jpg\|png\|webp>`, zips this run's files atomically, shows the whole batch as a gallery on the node and gives you a **⬇ Download ZIP** button that survives a page reload, plus a `download_url` output. |
+
+**Why Split/Merge instead of a Switch.** In list mode ComfyUI resolves lazy inputs for the *whole
+list* at once: one photo needing `on_true` makes the upstream node a strong link for every item, so
+a paid upscaler behind a Switch runs on all of them and the Switch merely discards the extras.
+Splitting the list before the paid node — and marking the way back lazy — means you pay for exactly
+the photos that needed work, including none.
+
+`workflows/Upscale to 1980 (folder + ZIP).json` is the reference graph: a folder of photos, only the
+small ones sent to Topaz Wonder 3.5, short side normalised to 1980 px, JPEG + ZIP out.
+Regenerate it with `python workflows/build_upscale_1980.py`.
+
+### `FAL/Image/Upscale` — Topaz 2026
+
+FAL retired `fal-ai/topaz/upscale/image` and split Topaz into `topaz/upscale/image/{precision,
+generative,creative,transparent}` plus `topaz/restore/image`. **FAL Upscale — Topaz 2026** is one
+node over all of it: pick from 19 models and the endpoint follows.
+
+| Family | Models | For |
+|---|---|---|
+| generative | **Wonder 3.5**, Wonder 3/2/Wonder, Recover 3, Standard MAX, Redefine, Recovery V2/Recovery | small or compressed sources — rebuilds detail |
+| precision | Standard V2, High Fidelity V3/V2, Low Resolution V2, CGI, Text Refine | clean, sharp sources — deterministic |
+| creative | Bloom 2, Bloom, Bloom Realism | re-imagining rather than restoring |
+| transparent | — | cutouts, keeps the alpha channel |
+
+$0.01 per output megapixel across the family, so model choice is free; `upscale_factor` is 1–4 here,
+not 1–8. Every optional dial is filtered against what the chosen model accepts, because Topaz scopes
+almost all of them to a single model (`prompt`/`texture`/`sharpen`/`denoise`/`creativity` → Redefine,
+`detail` → Recovery V2, `enhancement_strength` → Wonder 3/3.5, `fix_compression` → precision except
+CGI, `strength` → Text Refine, `color_preservation` → Bloom 2) and FAL 422s on an unknown field.
+Dropped dials are named in the console rather than silently ignored. `face_enhancement` defaults
+**off**: on a small face its separate pass is what produces the waxy look.
+
+**FAL Restore — Topaz** wraps `topaz/restore/image` (Recover 3 / Dust-Scratch V2 / Faces). It does
+not change the image size, so chain it *before* an upscaler.
+
+The old node is kept as *Topaz LEGACY endpoint* purely so saved graphs keep running.
+
 ## Catalog registry (`fal_registry.py`)
 
 Run where `FAL_KEY` is set (e.g. inside the ComfyUI container):
@@ -216,6 +266,11 @@ git clone https://github.com/dufok/ComfyUI-FAL.git
 ```
 
 Only dependency is `fal-client` (already present in most FAL-enabled ComfyUI setups).
+For iPhone HEIC/HEIF input in the folder loader, add `pillow-heif` — everything else works without it:
+
+```bash
+pip install pillow-heif
+```
 
 ## Auth
 
@@ -235,8 +290,14 @@ fal_banana.py      FAL/Image/Banana — Nano Banana / Gemini
 fal_generate.py    FAL/Image/Generate — Flux General (ControlNet / LoRA / IP-Adapter)
 fal_restore.py     FAL/Image/Restore — NAFNet, DRCT, Bria FIBO, DDColor
 fal_text.py        FAL/Text — VLM and LLM over OpenRouter
+fal_topaz.py       FAL/Image/Upscale + Restore — the 2026 Topaz family, one gated node
+folderio_nodes.py  image/folder — folder upload, list loader, split/merge, save + ZIP
+web/folderio.js    browser side of the folder nodes (upload buttons, drag-drop, ZIP button)
 fal_retag.py       tidies the co-installed gokayfem pack's categories (see below)
 fal_registry.py    catalog list / search / schema / diff
+tests/             test_topaz_args.py (offline, no key), test_folderio_smoke.py (in-image),
+                   test_folderio_e2e.py (against a running ComfyUI)
+workflows/         example graphs, and the script that generates the 1980 px one
 ```
 
 Adding a category = a new `fal_<x>.py` exposing `NODE_CLASS_MAPPINGS` + display names,
