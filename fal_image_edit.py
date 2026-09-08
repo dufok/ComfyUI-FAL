@@ -14,7 +14,7 @@ One bar for everyday photo work — the newest FAL models per task, cheapest-fir
            * FalSeedreamEdit       -> bytedance/seedream v4.5 | v5-lite ($0.04/img, up to 10 refs)
            * FalGeminiFlashEdit    -> gemini 3.1-flash-preview | 2.5-flash ($0.04-0.08, Google, multi-ref)
   Upscale  * FalSeedVRUpscale      -> fal-ai/seedvr/upscale/image      (SeedVR2)
-           * FalTopazUpscale       -> fal-ai/topaz/upscale/image       (photo standard)
+           * FalTopazUpscale       -> fal-ai/topaz/upscale/image       (LEGACY, see fal_topaz.py)
            * FalRecraftCrispUpscale-> fal-ai/recraft/upscale/crisp     (cheap utility)
            * FalClarityUpscaler    -> fal-ai/clarity-upscaler          (creative detail)
   Expand   * FalBriaExpand         -> fal-ai/bria/expand               (outpaint to a bigger canvas)
@@ -648,7 +648,10 @@ class FalSeedVRUpscale:
 
 
 class FalTopazUpscale:
-    """fal-ai/topaz/upscale/image — Topaz, the photo-restoration standard (faces, denoise)."""
+    """fal-ai/topaz/upscale/image — LEGACY. FAL removed this endpoint from its catalogue in
+    2026-09 and split Topaz into precision/generative/creative/transparent; it still serves, but it
+    cannot reach the newer models (Wonder 3.5, Recover 3, High Fidelity V3, Bloom 2). Kept so saved
+    graphs keep running — use FalTopazUpscale2026 (fal_topaz.py) for anything new."""
 
     MODELS = ["Low Resolution V2", "Standard V2", "CGI", "High Fidelity V2", "Text Refine",
               "Recovery", "Redefine", "Recovery V2", "Standard MAX", "Wonder", "Wonder 3"]
@@ -1039,7 +1042,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalSeedreamEdit": "FAL Edit — Seedream v5-pro / v5-lite / v4.5 ($0.04–0.14)",
     "FalGeminiFlashEdit": "FAL Banana — Gemini Flash 3.1 / 2.5, older node ($0.039–0.08)",
     "FalSeedVRUpscale": "FAL Upscale — SeedVR v2, opt. seamless ($0.001–0.0025/MP)",
-    "FalTopazUpscale": "FAL Upscale — Topaz, model in dropdown ($0.08–1.36)",
+    "FalTopazUpscale": "FAL Upscale — Topaz LEGACY endpoint (use Topaz 2026)",
     "FalRecraftCrispUpscale": "FAL Upscale — Recraft Crisp ($0.004)",
     "FalClarityUpscaler": "FAL Upscale — Clarity, creative ($0.03/MP)",
     "FalBriaExpand": "FAL Expand — Bria Outpaint ($0.04)",

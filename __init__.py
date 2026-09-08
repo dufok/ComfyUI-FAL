@@ -12,13 +12,14 @@ from . import (
     fal_material,
     fal_restore,
     fal_text,
+    fal_topaz,
 )
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 for _mod in (fal_3d, fal_background, fal_banana, fal_generate, fal_image_edit,
-             fal_material, fal_restore, fal_text):
+             fal_material, fal_restore, fal_text, fal_topaz):
     NODE_CLASS_MAPPINGS.update(_mod.NODE_CLASS_MAPPINGS)
     NODE_DISPLAY_NAME_MAPPINGS.update(_mod.NODE_DISPLAY_NAME_MAPPINGS)
 
