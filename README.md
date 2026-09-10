@@ -3,13 +3,15 @@
 **FAL nodes ComfyUI doesn't have yet** — image→3D (Tripo / Hunyuan3D / TRELLIS, **no local GPU**),
 Bria background removal, the **whole 2026 Topaz family in one gated node**, and an **Image Edit bar**
 (object removal, erasers, mask inpaint, prompt edit, upscalers, outpaint — the newest FAL models,
-prices right in the node names), plus a **model-catalog registry** and **new-model checker** that no
-other FAL pack ships. Everything is browsable in the node tree under the **`FAL/`** category.
+prices right in the node names), **Wan VACE depth→video** for camera moves that stay consistent
+because their geometry comes from 3D, plus a **model-catalog registry** and **new-model checker**
+that no other FAL pack ships. Everything is browsable in the node tree under the **`FAL/`** category.
 
 It also ships a small **folder-IO bar** under `image/folder`: upload a folder of photos straight from
-the browser, run the graph once per photo, and download every result as a single ZIP. Those four
-nodes make no API calls and need no key — they are here because batch photo work is what the FAL
-upscalers are actually used for.
+the browser, run the graph once per photo, and download every result as a single ZIP — or load a
+numbered render sequence as one batch on its way into a video. Those five nodes make no API calls
+and need no key — they are here because batch photo work is what the FAL upscalers are actually
+used for.
 
 Built on [FAL](https://fal.ai); one `FAL_KEY`, pay-as-you-go, all heavy compute is in the cloud.
 
@@ -202,6 +204,7 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | Node | What it does |
 |---|---|
 | 📁 Load Images (upload folder) | *Upload folder… / Upload files…* buttons, or drop a folder onto the node: the files go to `input/<folder>/` through the stock `/upload/image` endpoint, one request per file (so proxies with small body caps are fine), and the folder is then selected on the node. Loads every photo as an IMAGE **list**, plus the original file stems and a count. EXIF orientation applied, embedded ICC (Display P3 phone shots) converted to sRGB, HEIC/HEIF/AVIF when `pillow-heif` is installed. |
+| 🎞 Load Frame Sequence (one batch) | The same upload buttons, but the folder is loaded as **one batched IMAGE** in natural name order — a numbered render sequence on its way into a video, not a list to iterate. 16-bit PNGs (what Blender writes for a depth pass) are read at full precision; `max_frames` is where you cut the sequence to a legal 4n+1 length. |
 | ✂️ Split by Short Side | Hands out only the photos whose short side is below the target, plus their indices. |
 | 🔀 Merge Subset (by index) | Puts the processed photos back in place. `replacements` is a **lazy** input. |
 | 💾 Save Images + ZIP | Writes `output/<folder>/<stem><suffix>.<jpg\|png\|webp>`, zips this run's files atomically, shows the whole batch as a gallery on the node and gives you a **⬇ Download ZIP** button that survives a page reload, plus a `download_url` output. |
@@ -241,6 +244,48 @@ Dropped dials are named in the console rather than silently ignored. `face_enhan
 not change the image size, so chain it *before* an upscaler.
 
 The old node is kept as *Topaz LEGACY endpoint* purely so saved graphs keep running.
+
+### `FAL/Video` — a rendered depth pass becomes a coherent orbit
+
+FAL's image editors do not understand space. Hand one a plate of the same room shot from another
+angle and it reproduces that plate's horizon and floor convergence no matter what the prompt
+forbids — negation does not work against pixels. What does understand space is a video model
+driven by depth, and the temporal coherence between neighbouring frames *is* consistency between
+viewpoints, handed over for free.
+
+So: render the camera move in 3D, export the depth pass, look-develop **one** frame, and let VACE
+carry that look around the orbit. Then pull the viewpoint you need out of the clip and use it as
+the appearance reference for the final 2K pass — its camera is your camera, so there is no
+perspective conflict left to fight.
+
+| Node | Endpoint | What it does |
+|---|---|---|
+| FAL Video — Wan VACE 14B depth → orbit | `fal-ai/wan-vace-14b/depth` | depth sequence (IMAGE batch or VIDEO) + `first_frame` → a photoreal orbit. ~**$0.08 per second of 720p**, counted at 16 fps. |
+| FAL Video — URL → file | — | downloads a video URL into `output/` and returns a real VIDEO |
+| FAL Video — Pick Frames | — | takes chosen frames out of a VIDEO, decoding only those |
+
+**`num_frames` has to be 4n+1** (…49, 57, 61, 65, 81…): the temporal VAE packs four frames per
+latent plus one incompressible anchor. Ask for 60 and the tail is either cut or padded with
+duplicates — an under-rotation, or a freeze in exactly the frame you needed. The node refuses
+anything else and names the two legal neighbours.
+
+**Angular step is the real parameter.** Wan does not know about fps — it generates N frames and
+plays them at 16. Keep the camera under ~6° per frame or neighbouring frames stop correlating and
+the object drifts: 360° over 61 frames is 5.9°, the working limit; 180° over 49 frames is 3.7° and
+both cheaper and steadier. Type the arc into `arc_degrees` and the node does the division and warns.
+
+**`preprocess` stays off.** On, FAL runs a depth estimator over the input — but the input already
+*is* depth.
+
+**Feeding it.** 🎞 *Load Frame Sequence* (in `image/folder`) turns a folder of rendered frames into one batch;
+the node encodes it to h264 itself, clamping to 0..1 on the way (clip the depth pass on the Blender
+side too — this is a net, not a plan). h264 cannot encode odd dimensions, so render at an even size.
+Fix `near`/`far` for the whole flight rather than per camera position: normalising per frame gives
+VACE a breathing depth map and the object pulses along Z.
+
+No ComfyUI-VideoHelperSuite needed. ComfyUI ships the VIDEO type with *Create Video* / *Get Video
+Components* / *Load Video* / *Save Video*, and PyAV brings the h264 encoder — the only missing
+pieces were this endpoint, a download step and cheap frame extraction.
 
 ## Catalog registry (`fal_registry.py`)
 
@@ -291,11 +336,13 @@ fal_generate.py    FAL/Image/Generate — Flux General (ControlNet / LoRA / IP-A
 fal_restore.py     FAL/Image/Restore — NAFNet, DRCT, Bria FIBO, DDColor
 fal_text.py        FAL/Text — VLM and LLM over OpenRouter
 fal_topaz.py       FAL/Image/Upscale + Restore — the 2026 Topaz family, one gated node
-folderio_nodes.py  image/folder — folder upload, list loader, split/merge, save + ZIP
+fal_video.py       FAL/Video — Wan VACE depth→orbit, URL→file, frame picking
+folderio_nodes.py  image/folder — folder upload, list loader, sequence loader, split/merge, save + ZIP
 web/folderio.js    browser side of the folder nodes (upload buttons, drag-drop, ZIP button)
 fal_retag.py       tidies the co-installed gokayfem pack's categories (see below)
 fal_registry.py    catalog list / search / schema / diff
-tests/             test_topaz_args.py (offline, no key), test_folderio_smoke.py (in-image),
+tests/             test_topaz_args.py (offline, no key), test_folderio_smoke.py and
+                   test_video_smoke.py (in-image, no FAL call),
                    test_folderio_e2e.py (against a running ComfyUI)
 workflows/         example graphs, and the script that generates the 1980 px one
 ```

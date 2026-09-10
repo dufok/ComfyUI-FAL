@@ -1,6 +1,6 @@
 // ComfyUI-FolderIO — browser side.
 //
-//  📁 Load Images (upload folder)
+//  📁 Load Images (upload folder) / 🎞 Load Frame Sequence
 //     Adds "Upload folder…" / "Upload files…" buttons and accepts a folder dropped onto the node.
 //     Every file goes to input/<folder>/ through the stock /upload/image endpoint — one request per
 //     file, so proxies with small body caps (Cloudflare free: 100 MB) never bite — and the folder
@@ -11,7 +11,8 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const LOAD_NODE = "FolderIOLoadImages";
+const LOAD_NODES = ["FolderIOLoadImages", "FolderIOLoadSequence"];
+const isLoadNode = (name) => LOAD_NODES.includes(name);
 const SAVE_NODE = "FolderIOSaveZip";
 const UPLOAD_BTN = "📁 Upload folder…";
 const FILES_BTN = "🖼 Upload files…";
@@ -92,12 +93,13 @@ const graphNodes = () => app.graph?.nodes ?? app.graph?._nodes ?? [];
 // every folder combo in the graph the fresh list of input/ subfolders.
 async function refreshFolderCombos() {
   try {
-    const res = await api.fetchApi(`/object_info/${LOAD_NODE}`);
+    // Both loaders list the same input/ subfolders, so one definition is enough to re-read.
+    const res = await api.fetchApi(`/object_info/${LOAD_NODES[0]}`);
     if (res.status !== 200) return;
-    const values = (await res.json())?.[LOAD_NODE]?.input?.required?.folder?.[0];
+    const values = (await res.json())?.[LOAD_NODES[0]]?.input?.required?.folder?.[0];
     if (!Array.isArray(values)) return;
     for (const n of graphNodes()) {
-      if (n.type !== LOAD_NODE) continue;
+      if (!isLoadNode(n.type)) continue;
       const w = findWidget(n, "folder");
       if (!w?.options) continue;
       const cur = w.value;
@@ -260,7 +262,7 @@ function addButton(node, name, callback) {
 app.registerExtension({
   name: "Comfy.FolderIO",
   async beforeRegisterNodeDef(nodeType, nodeData) {
-    if (nodeData.name === LOAD_NODE) {
+    if (isLoadNode(nodeData.name)) {
       const onNodeCreated = nodeType.prototype.onNodeCreated;
       nodeType.prototype.onNodeCreated = function () {
         const r = onNodeCreated?.apply(this, arguments);

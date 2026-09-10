@@ -8,6 +8,10 @@ FolderIOLoadImages
     endpoint — no scripts, no scp. EXIF orientation is applied and embedded ICC profiles
     (Display P3 phone shots, CMYK scans) are converted to sRGB.
 
+FolderIOLoadSequence
+    The same folder, loaded as ONE batched IMAGE instead of a list — a numbered render sequence
+    (Blender depth or beauty) on its way into a video. 16-bit PNGs keep their precision.
+
 FolderIOSplitByShortSide / FolderIOMergeSubset
     Per-photo gating for paid per-image nodes. In list mode ComfyUI resolves lazy inputs for the
     whole list at once, so a Switch does NOT stop an upstream upscaler from running on every photo
@@ -563,14 +567,153 @@ class FolderIOSaveZip:
             img.save(path, format="PNG", pnginfo=meta, compress_level=4)
 
 
+# ------------------------------------------------------------------------------------------------
+class FolderIOLoadSequence:
+    """Load a numbered frame sequence from an input/ subfolder as ONE batched IMAGE.
+
+    The sibling loader above hands out a *list* — one graph pass per photo, which is what you
+    want for per-photo work and exactly what you must not have for a video: a depth sequence
+    has to arrive as a single [N,H,W,3] tensor, in frame order, to be encoded as one clip.
+
+    16-bit PNGs (what Blender writes for a depth pass) are read at their real precision. Loading
+    them through the 8-bit path would divide 0..65535 by 255 and clip every frame to white.
+    """
+
+    EXTS = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "folder": (
+                    folder_paths.get_input_subfolders(),
+                    {
+                        "tooltip": "Subfolder of input/ holding the frames, numbered in name order. "
+                        "Use the 📁 Upload folder… button or drop a folder onto this node. R refreshes.",
+                    },
+                ),
+                "start_index": ("INT", {"default": 0, "min": 0, "max": 99999,
+                                        "tooltip": "Skip the first N frames."}),
+                "max_frames": ("INT", {"default": 0, "min": 0, "max": 999,
+                                       "tooltip": "0 = all. Wan takes 4n+1 frames (…49, 57, 61, 65, 81…), "
+                                                  "so this is where you cut the sequence to length."}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "INT")
+    RETURN_NAMES = ("images", "frame_count")
+    OUTPUT_TOOLTIPS = ("All frames as one batch, in name order.", "How many frames were loaded.")
+    FUNCTION = "load"
+    CATEGORY = "image/folder"
+    DESCRIPTION = ("Loads a numbered frame sequence (a Blender depth or beauty render) from an "
+                   "input/ subfolder as one batched IMAGE — ready for FAL Video — Wan VACE, or "
+                   "for the core Create Video node.")
+
+    @classmethod
+    def _files(cls, folder, start_index, max_frames):
+        d = FolderIOLoadImages._dir(folder)
+        if not os.path.isdir(d):
+            raise FileNotFoundError(f"input/{folder} does not exist")
+        rows = []
+        with os.scandir(d) as it:
+            for entry in it:
+                if entry.name.startswith(".") or not entry.is_file():
+                    continue
+                if os.path.splitext(entry.name)[1].lower() in cls.EXTS:
+                    st = entry.stat()
+                    if st.st_size > 0:
+                        rows.append((entry.name, st.st_mtime_ns, st.st_size))
+        rows.sort(key=lambda r: _natural(r[0]))
+        rows = rows[int(start_index or 0):]
+        if max_frames:
+            rows = rows[: int(max_frames)]
+        return d, rows
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, folder):
+        try:
+            d = FolderIOLoadImages._dir(folder)
+        except ValueError as exc:
+            return str(exc)
+        if not os.path.isdir(d):
+            return (f"input/{folder} not found — upload a folder first "
+                    "(📁 button on the node, or drop a folder onto it)")
+        return True
+
+    @classmethod
+    def IS_CHANGED(cls, folder, start_index, max_frames):
+        try:
+            _, rows = cls._files(folder, start_index, max_frames)
+        except Exception:  # noqa: BLE001 — let load() raise the readable error
+            return float("nan")
+        h = hashlib.sha256()
+        for name, mtime, size in rows:
+            h.update(f"{name}\0{mtime}\0{size}\n".encode("utf-8", "surrogateescape"))
+        return h.hexdigest()
+
+    @staticmethod
+    def _frame(path):
+        """One file -> ([H,W,3] float32 0..1 array, a label for the bit depth)."""
+        img = node_helpers.pillow(Image.open, path)
+        mode = img.mode
+        if mode in ("I", "I;16", "I;16B", "I;16L", "I;16N"):
+            # 16-bit grey (Blender depth). PIL hands these over as uint16, or int32 for "I".
+            arr = np.asarray(img).astype(np.float32) / 65535.0
+            return np.repeat(arr[..., None], 3, axis=2), "16-bit"
+        if mode == "F":
+            arr = np.asarray(img, dtype=np.float32)
+            lo, hi = float(arr.min()), float(arr.max())
+            if hi > 1.001 or lo < -0.001:
+                log.warning("[FolderIO] %s: float values %.3f..%.3f outside 0..1 — clipped. "
+                            "Normalise the depth pass on export.", os.path.basename(path), lo, hi)
+                arr = np.clip(arr, 0.0, 1.0)
+            return np.repeat(arr[..., None], 3, axis=2), "float"
+        arr = np.asarray(_to_srgb(img), dtype=np.float32) / 255.0
+        return arr, "8-bit"
+
+    def load(self, folder, start_index, max_frames):
+        d, rows = self._files(folder, start_index, max_frames)
+        if not rows:
+            raise ValueError(f"input/{folder}: no frames found ({', '.join(self.EXTS)})")
+        frames, depths, shape = [], set(), None
+        for name, _, _ in rows:
+            arr, depth = self._frame(os.path.join(d, name))
+            if shape is None:
+                shape = arr.shape
+            elif arr.shape != shape:
+                raise ValueError(
+                    f"input/{folder}/{name} is {arr.shape[1]}x{arr.shape[0]}, but the sequence "
+                    f"starts at {shape[1]}x{shape[0]} — every frame must be the same size")
+            depths.add(depth)
+            frames.append(torch.from_numpy(np.ascontiguousarray(arr)))
+        images = torch.stack(frames, 0)
+        h, w = shape[0], shape[1]
+        log.info("[FolderIO] input/%s: %d frame(s) %dx%d, %s (~%.2f GB as float32)",
+                 folder, len(frames), w, h, "/".join(sorted(depths)), images.numel() * 4 / 1e9)
+        result = (images, len(frames))
+        if len(depths) > 1:
+            msg = (f"input/{folder} mixes {', '.join(sorted(depths))} frames — a depth sequence "
+                   f"should be one format throughout, or the normalisation jumps mid-flight.")
+            log.warning("[FolderIO] %s", msg)
+            return {"ui": {"folderio_warning": [msg]}, "result": result}
+        if h % 2 or w % 2:
+            msg = (f"input/{folder} is {w}x{h} — h264 cannot encode odd dimensions, so this "
+                   f"sequence will not go into a video. Re-render at an even size.")
+            log.warning("[FolderIO] %s", msg)
+            return {"ui": {"folderio_warning": [msg]}, "result": result}
+        return result
+
+
 NODE_CLASS_MAPPINGS = {
     "FolderIOLoadImages": FolderIOLoadImages,
+    "FolderIOLoadSequence": FolderIOLoadSequence,
     "FolderIOSplitByShortSide": FolderIOSplitByShortSide,
     "FolderIOMergeSubset": FolderIOMergeSubset,
     "FolderIOSaveZip": FolderIOSaveZip,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FolderIOLoadImages": "📁 Load Images (upload folder)",
+    "FolderIOLoadSequence": "🎞 Load Frame Sequence (one batch)",
     "FolderIOSplitByShortSide": "✂️ Split by Short Side",
     "FolderIOMergeSubset": "🔀 Merge Subset (by index)",
     "FolderIOSaveZip": "💾 Save Images + ZIP",
