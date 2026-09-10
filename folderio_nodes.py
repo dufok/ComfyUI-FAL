@@ -10,7 +10,8 @@ FolderIOLoadImages
 
 FolderIOLoadSequence
     The same folder, loaded as ONE batched IMAGE instead of a list — a numbered render sequence
-    (Blender depth or beauty) on its way into a video. 16-bit PNGs keep their precision.
+    (Blender depth or beauty) on its way into a video. 16-bit PNGs keep their precision. Given
+    the frames the cameras stand on, it cuts the flight to 4n+1 for Wan VACE without losing them.
 
 FolderIOSplitByShortSide / FolderIOMergeSubset
     Per-photo gating for paid per-image nodes. In list mode ComfyUI resolves lazy inputs for the
@@ -567,13 +568,97 @@ class FolderIOSaveZip:
             img.save(path, format="PNG", pnginfo=meta, compress_level=4)
 
 
+# Wan VACE takes 17..241 frames, and only 4n+1 of them: its temporal VAE packs four frames per
+# latent plus one anchor. fal_video validates against the same numbers.
+VACE_MIN_FRAMES = 17
+VACE_MAX_FRAMES = 241
+_FRAME_NO = re.compile(r"(\d+)(?:\s*\(\d+\))?$")  # last number in the stem; ignores a " (1)" copy suffix
+
+
+def frame_number(name):
+    """Blender frame number from a rendered file name: '0006.png' and 'depth_v2_0006.png' -> 6."""
+    m = _FRAME_NO.search(os.path.splitext(str(name))[0])
+    return int(m.group(1)) if m else None
+
+
+def parse_frame_list(text, what="frames"):
+    """'6, 30 70;90' -> [6, 30, 70, 90], sorted and unique. Negative numbers pass through."""
+    parts = [p for p in re.split(r"[,\s;]+", str(text or "").strip()) if p]
+    try:
+        return sorted({int(p) for p in parts})
+    except ValueError:
+        raise ValueError(f"{what} must be frame numbers like '6, 30, 70', got {text!r}") from None
+
+
+def plan_flight(numbers, cameras):
+    """Which rendered frames go to VACE.
+
+    numbers: Blender frame numbers of the rendered files, ascending and unique.
+    cameras: Blender frame numbers the cameras stand on, ascending and unique.
+    Returns (keep, camera_positions, dropped): indices into `numbers` to keep, where each camera
+    sits in that kept run, and the frame numbers dropped between cameras to reach 4n+1.
+    """
+    if len(cameras) < 2:
+        raise ValueError("list at least two camera frames — the flight runs from the first camera "
+                         "to the last")
+    index = {n: i for i, n in enumerate(numbers)}
+    missing = [c for c in cameras if c not in index]
+    if missing:
+        raise ValueError(f"camera frame {missing[0]} is not in the folder (it holds frames "
+                         f"{numbers[0]}–{numbers[-1]}, {len(numbers)} files)")
+    cam_idx = [index[c] for c in cameras]
+    span = cam_idx[-1] - cam_idx[0] + 1
+    if span < VACE_MIN_FRAMES:
+        raise ValueError(f"only {span} frames from camera {cameras[0]} to camera {cameras[-1]} — "
+                         f"VACE needs at least {VACE_MIN_FRAMES}. Render more frames between the cameras.")
+    target = min(span, VACE_MAX_FRAMES)
+    target -= (target - 1) % 4                                  # the largest 4n+1 that fits
+    drop = span - target
+    stretches = [list(range(a + 1, b)) for a, b in zip(cam_idx, cam_idx[1:])]
+    room = sum(len(s) for s in stretches)
+    if drop > room:
+        raise ValueError(f"{len(cameras)} cameras within {span} frames leave nothing to drop between "
+                         f"them — render more frames between the cameras.")
+    # Largest-remainder share of the drop, in proportion to each stretch's length.
+    quota = [drop * len(s) / room if room else 0.0 for s in stretches]
+    share = [int(q) for q in quota]
+    for i in sorted(range(len(stretches)), key=lambda i: quota[i] - share[i], reverse=True)[:drop - sum(share)]:
+        share[i] += 1
+    dropped = set()
+    for s, k in zip(stretches, share):
+        if not k:
+            continue
+        # the middle of k equal slices of the stretch, so the gaps spread evenly through it
+        picks = []
+        for j in range(k):
+            i = s[min(len(s) - 1, int((j + 0.5) * len(s) / k))]
+            if i not in picks:
+                picks.append(i)
+        picks += [i for i in s if i not in picks][:k - len(picks)]   # only if two slices collided
+        dropped.update(picks)
+    keep = [i for i in range(cam_idx[0], cam_idx[-1] + 1) if i not in dropped]
+    pos = {i: p for p, i in enumerate(keep)}
+    return keep, [pos[i] for i in cam_idx], sorted(numbers[i] for i in dropped)
+
+
 # ------------------------------------------------------------------------------------------------
 class FolderIOLoadSequence:
-    """Load a numbered frame sequence from an input/ subfolder as ONE batched IMAGE.
+    """Load a numbered frame sequence from an input/ subfolder as ONE batched IMAGE — and, told
+    which frames the cameras stand on, cut it into a flight Wan VACE will take.
 
     The sibling loader above hands out a *list* — one graph pass per photo, which is what you
     want for per-photo work and exactly what you must not have for a video: a depth sequence
     has to arrive as a single [N,H,W,3] tensor, in frame order, to be encoded as one clip.
+
+    camera_frames are Blender frame numbers, read from the file names (0006.png is frame 6), so
+    they mean the same thing whatever frame the render started on. Given them, the loader
+      * starts the flight on the first camera and ends it on the last. VACE lays the
+        look-developed first frame over frame 0 of the depth, so a lead-in before that camera
+        would put the look on the wrong geometry; frames after the last camera are drift you pay for;
+      * drops frames *between* cameras, spread in proportion to each stretch, until the length is
+        4n+1 — the largest one that fits, so normally three frames at most. A camera frame is never
+        dropped and nothing is ever duplicated (a duplicate plays as a freeze);
+      * hands out where the cameras ended up, for Pick Frames.
 
     16-bit PNGs (what Blender writes for a depth pass) are read at their real precision. Loading
     them through the 8-bit path would divide 0..65535 by 255 and clip every frame to white.
@@ -588,29 +673,38 @@ class FolderIOLoadSequence:
                 "folder": (
                     folder_paths.get_input_subfolders(),
                     {
-                        "tooltip": "Subfolder of input/ holding the frames, numbered in name order. "
-                        "Use the 📁 Upload folder… button or drop a folder onto this node. R refreshes.",
+                        "tooltip": "Subfolder of input/ holding the frames. Use the 📁 Upload folder… "
+                        "button or drop a folder onto this node. R refreshes.",
                     },
                 ),
-                "start_index": ("INT", {"default": 0, "min": 0, "max": 99999,
-                                        "tooltip": "Skip the first N frames."}),
-                "max_frames": ("INT", {"default": 0, "min": 0, "max": 999,
-                                       "tooltip": "0 = all. Wan takes 4n+1 frames (…49, 57, 61, 65, 81…), "
-                                                  "so this is where you cut the sequence to length."}),
+                "camera_frames": ("STRING", {
+                    "default": "",
+                    "tooltip": "Blender frame numbers the cameras stand on, as in Current Frame and in "
+                               "the file names: '6, 30, 70'. The flight is cut to run from the first to "
+                               "the last and trimmed to 4n+1 without touching these. Empty = load every "
+                               "frame as it is. Density: frames between two cameras ≥ degrees between "
+                               "them ÷ 5.",
+                }),
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "INT")
-    RETURN_NAMES = ("images", "frame_count")
-    OUTPUT_TOOLTIPS = ("All frames as one batch, in name order.", "How many frames were loaded.")
+    RETURN_TYPES = ("IMAGE", "STRING", "INT", "STRING")
+    RETURN_NAMES = ("images", "camera_positions", "frame_count", "info")
+    OUTPUT_TOOLTIPS = (
+        "The frames as one batch, in frame order — trimmed to the flight when camera_frames is set.",
+        "Where the cameras landed in that batch, 0-based ('0, 23, 60'). Wire into Pick Frames › frames.",
+        "How many frames are in the batch.",
+        "What was cut and dropped, and how many frames separate the cameras.",
+    )
     FUNCTION = "load"
     CATEGORY = "image/folder"
-    DESCRIPTION = ("Loads a numbered frame sequence (a Blender depth or beauty render) from an "
-                   "input/ subfolder as one batched IMAGE — ready for FAL Video — Wan VACE, or "
-                   "for the core Create Video node.")
+    DESCRIPTION = ("Loads a numbered frame sequence (a Blender depth or beauty render) from an input/ "
+                   "subfolder as one batched IMAGE. With camera_frames it becomes a flight ready for "
+                   "FAL Video — Wan VACE: from the first camera to the last, 4n+1 frames, camera frames "
+                   "kept, and their new positions handed on to Pick Frames.")
 
     @classmethod
-    def _files(cls, folder, start_index, max_frames):
+    def _files(cls, folder):
         d = FolderIOLoadImages._dir(folder)
         if not os.path.isdir(d):
             raise FileNotFoundError(f"input/{folder} does not exist")
@@ -624,9 +718,6 @@ class FolderIOLoadSequence:
                     if st.st_size > 0:
                         rows.append((entry.name, st.st_mtime_ns, st.st_size))
         rows.sort(key=lambda r: _natural(r[0]))
-        rows = rows[int(start_index or 0):]
-        if max_frames:
-            rows = rows[: int(max_frames)]
         return d, rows
 
     @classmethod
@@ -641,12 +732,12 @@ class FolderIOLoadSequence:
         return True
 
     @classmethod
-    def IS_CHANGED(cls, folder, start_index, max_frames):
+    def IS_CHANGED(cls, folder, camera_frames):
         try:
-            _, rows = cls._files(folder, start_index, max_frames)
+            _, rows = cls._files(folder)
         except Exception:  # noqa: BLE001 — let load() raise the readable error
             return float("nan")
-        h = hashlib.sha256()
+        h = hashlib.sha256(str(camera_frames).encode("utf-8"))
         for name, mtime, size in rows:
             h.update(f"{name}\0{mtime}\0{size}\n".encode("utf-8", "surrogateescape"))
         return h.hexdigest()
@@ -671,12 +762,54 @@ class FolderIOLoadSequence:
         arr = np.asarray(_to_srgb(img), dtype=np.float32) / 255.0
         return arr, "8-bit"
 
-    def load(self, folder, start_index, max_frames):
-        d, rows = self._files(folder, start_index, max_frames)
+    @staticmethod
+    def _numbered(folder, rows):
+        """[(blender frame number, file name)] sorted by number; refuses gaps in the naming."""
+        numbered, seen = [], {}
+        for name, _, _ in rows:
+            n = frame_number(name)
+            if n is None:
+                raise ValueError(
+                    f"input/{folder}/{name} has no frame number in its name — camera_frames needs "
+                    f"Blender's numbered output (0006.png is frame 6)")
+            if n in seen:
+                raise ValueError(
+                    f"frame {n} appears twice in input/{folder}: {seen[n]} and {name} — keep one "
+                    f"render per folder")
+            seen[n] = name
+            numbered.append((n, name))
+        numbered.sort()
+        return numbered
+
+    def load(self, folder, camera_frames):
+        d, rows = self._files(folder)
         if not rows:
             raise ValueError(f"input/{folder}: no frames found ({', '.join(self.EXTS)})")
+        cameras = parse_frame_list(camera_frames, what="camera_frames")
+        warnings, positions, report = [], "", f"input/{folder}: {len(rows)} frame(s), no cameras listed"
+        if cameras:
+            numbered = self._numbered(folder, rows)
+            numbers = [n for n, _ in numbered]
+            keep, cam_pos, dropped = plan_flight(numbers, cameras)
+            names = [numbered[i][1] for i in keep]
+            positions = ", ".join(str(p) for p in cam_pos)
+            gaps = [b - a for a, b in zip(cam_pos, cam_pos[1:])]
+            report = (
+                f"cameras {', '.join(map(str, cameras))} -> positions {positions} | "
+                f"{len(keep)} frames for VACE (4n+1) out of {len(numbers)} rendered | "
+                f"cut {keep[0]} before the first camera, {len(numbers) - 1 - keep[-1]} after the last | "
+                f"dropped {', '.join(map(str, dropped)) or 'none'} | "
+                f"frames between cameras: {', '.join(map(str, gaps))}")
+            if len(dropped) > 3:
+                warnings.append(
+                    f"input/{folder}: the flight is longer than VACE's {VACE_MAX_FRAMES} frames, so "
+                    f"{len(dropped)} frames were dropped between the cameras — the camera moves in "
+                    f"bigger steps there. Render fewer frames if that shows.")
+        else:
+            names = [name for name, _, _ in rows]
+
         frames, depths, shape = [], set(), None
-        for name, _, _ in rows:
+        for name in names:
             arr, depth = self._frame(os.path.join(d, name))
             if shape is None:
                 shape = arr.shape
@@ -688,19 +821,21 @@ class FolderIOLoadSequence:
             frames.append(torch.from_numpy(np.ascontiguousarray(arr)))
         images = torch.stack(frames, 0)
         h, w = shape[0], shape[1]
-        log.info("[FolderIO] input/%s: %d frame(s) %dx%d, %s (~%.2f GB as float32)",
-                 folder, len(frames), w, h, "/".join(sorted(depths)), images.numel() * 4 / 1e9)
-        result = (images, len(frames))
+        report += f" | {w}x{h} {'/'.join(sorted(depths))}"
+        log.info("[FolderIO] %s (~%.2f GB as float32)", report, images.numel() * 4 / 1e9)
         if len(depths) > 1:
-            msg = (f"input/{folder} mixes {', '.join(sorted(depths))} frames — a depth sequence "
-                   f"should be one format throughout, or the normalisation jumps mid-flight.")
-            log.warning("[FolderIO] %s", msg)
-            return {"ui": {"folderio_warning": [msg]}, "result": result}
+            warnings.append(
+                f"input/{folder} mixes {', '.join(sorted(depths))} frames — a depth sequence should "
+                f"be one format throughout, or the normalisation jumps mid-flight.")
         if h % 2 or w % 2:
-            msg = (f"input/{folder} is {w}x{h} — h264 cannot encode odd dimensions, so this "
-                   f"sequence will not go into a video. Re-render at an even size.")
-            log.warning("[FolderIO] %s", msg)
-            return {"ui": {"folderio_warning": [msg]}, "result": result}
+            warnings.append(
+                f"input/{folder} is {w}x{h} — h264 cannot encode odd dimensions, so this sequence "
+                f"will not go into a video. Re-render at an even size.")
+        result = (images, positions, len(frames), report)
+        if warnings:
+            for msg in warnings:
+                log.warning("[FolderIO] %s", msg)
+            return {"ui": {"folderio_warning": [" ".join(warnings)]}, "result": result}
         return result
 
 

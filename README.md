@@ -204,7 +204,7 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | Node | What it does |
 |---|---|
 | 📁 Load Images (upload folder) | *Upload folder… / Upload files…* buttons, or drop a folder onto the node: the files go to `input/<folder>/` through the stock `/upload/image` endpoint, one request per file (so proxies with small body caps are fine), and the folder is then selected on the node. Loads every photo as an IMAGE **list**, plus the original file stems and a count. EXIF orientation applied, embedded ICC (Display P3 phone shots) converted to sRGB, HEIC/HEIF/AVIF when `pillow-heif` is installed. |
-| 🎞 Load Frame Sequence (one batch) | The same upload buttons, but the folder is loaded as **one batched IMAGE** in natural name order — a numbered render sequence on its way into a video, not a list to iterate. 16-bit PNGs (what Blender writes for a depth pass) are read at full precision; `max_frames` is where you cut the sequence to a legal 4n+1 length. |
+| 🎞 Load Frame Sequence (one batch) | The same upload buttons, but the folder is loaded as **one batched IMAGE** in frame order — a numbered render sequence on its way into a video, not a list to iterate. 16-bit PNGs (what Blender writes for a depth pass) are read at full precision. With `camera_frames` (Blender frame numbers) it becomes a flight for Wan VACE: first camera to last, trimmed to 4n+1 without losing a camera frame, and `camera_positions` handed on to Pick Frames. |
 | ✂️ Split by Short Side | Hands out only the photos whose short side is below the target, plus their indices. |
 | 🔀 Merge Subset (by index) | Puts the processed photos back in place. `replacements` is a **lazy** input. |
 | 💾 Save Images + ZIP | Writes `output/<folder>/<stem><suffix>.<jpg\|png\|webp>`, zips this run's files atomically, shows the whole batch as a gallery on the node and gives you a **⬇ Download ZIP** button that survives a page reload, plus a `download_url` output. |
@@ -262,17 +262,21 @@ perspective conflict left to fight.
 |---|---|---|
 | FAL Video — Wan VACE 14B depth → orbit | `fal-ai/wan-vace-14b/depth` | depth sequence (IMAGE batch or VIDEO) + `first_frame` → a photoreal orbit. ~**$0.08 per second of 720p**, counted at 16 fps. |
 | FAL Video — URL → file | — | downloads a video URL into `output/` and returns a real VIDEO |
-| FAL Video — Pick Frames | — | takes chosen frames out of a VIDEO, decoding only those |
+| FAL Video — Pick Frames | — | takes chosen frames out of a VIDEO, decoding only those — an exact list (the camera positions, wired) or start/count/stride |
 
-**`num_frames` has to be 4n+1** (…49, 57, 61, 65, 81…): the temporal VAE packs four frames per
-latent plus one incompressible anchor. Ask for 60 and the tail is either cut or padded with
-duplicates — an under-rotation, or a freeze in exactly the frame you needed. The node refuses
-anything else and names the two legal neighbours.
+**The length is the flight's, never typed.** The temporal VAE packs four frames per latent plus
+one incompressible anchor, so VACE takes 4n+1 frames (…49, 57, 61, 65, 81…), 17 to 241. Give it 60
+and the tail is cut or padded with duplicates — an under-rotation, or a freeze in exactly the frame
+you needed. You never count this yourself: list the frames your cameras stand on in 🎞 *Load Frame
+Sequence* (`camera_frames`, Blender numbers as in the file names) and it starts the flight on the
+first camera, ends it on the last, and drops a few frames *between* cameras — never a camera frame,
+never a duplicate — until the length is 4n+1. The cameras' new positions go by wire to *Pick
+Frames*, which takes exactly those frames out of the result.
 
-**Angular step is the real parameter.** Wan does not know about fps — it generates N frames and
-plays them at 16. Keep the camera under ~6° per frame or neighbouring frames stop correlating and
-the object drifts: 360° over 61 frames is 5.9°, the working limit; 180° over 49 frames is 3.7° and
-both cheaper and steadier. Type the arc into `arc_degrees` and the node does the division and warns.
+**Density is set in Blender**, because nothing downstream can know the angle: Wan has no notion of
+fps, it generates N frames and plays them at 16, so what matters is how far the camera moves per
+frame. Keep **frames between two cameras ≥ degrees between them ÷ 5**; past ~6° per frame
+neighbouring frames stop correlating and the scene drifts.
 
 **`preprocess` stays off.** On, FAL runs a depth estimator over the input — but the input already
 *is* depth.
@@ -292,7 +296,7 @@ accumulates towards the end of the flight, which is exactly where that frame is,
 short and the frames dense rather than generating a long orbit you will not use.
 
 **Feeding it.** 🎞 *Load Frame Sequence* (in `image/folder`) turns a folder of rendered frames into one batch;
-the node encodes it to h264 itself, clamping to 0..1 on the way (clip the depth pass on the Blender
+the VACE node encodes it to h264 itself, clamping to 0..1 on the way (clip the depth pass on the Blender
 side too — this is a net, not a plan). h264 cannot encode odd dimensions, so render at an even size.
 Fix `near`/`far` for the whole flight rather than per camera position: normalising per frame gives
 VACE a breathing depth map and the object pulses along Z.
