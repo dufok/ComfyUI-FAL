@@ -116,36 +116,24 @@ raises(lambda: Vace().run("   ", depth_images=batch), "prompt is required")
 d = os.path.join(IN, "depth")
 for i, v in ((1, 0), (2, 32768), (10, 65535)):
     Image.fromarray(np.full((H, W), v, dtype=np.uint16)).save(os.path.join(d, f"depth_{i}.png"))
-seq, alpha, n = Sequence().load("depth", 0, 0)
+seq, n = Sequence().load("depth", 0, 0)
 assert n == 3 and tuple(seq.shape) == (3, H, W, 3), (n, seq.shape)
 levels = [float(seq[i].mean()) for i in range(3)]
 assert levels[0] < 0.01 and abs(levels[1] - 0.5) < 0.01 and levels[2] > 0.99, levels  # depth_2 < depth_10
-assert Sequence().load("depth", 0, 2)[2] == 2                                          # max_frames cuts
-assert float(alpha.max()) == 0.0, "opaque frames must give an EMPTY mask — an all-white one erases everything"
+assert Sequence().load("depth", 0, 2)[1] == 2                                          # max_frames cuts
 
 # an 8-bit frame among 16-bit ones is a normalisation jump mid-flight — warn, don't fail
 Image.new("RGB", (W, H), (128, 128, 128)).save(os.path.join(d, "depth_11.png"))
 mixed = Sequence().load("depth", 0, 0)
 assert isinstance(mixed, dict) and "8-bit" in mixed["ui"]["folderio_warning"][0], mixed.get("ui")
-assert mixed["result"][2] == 4
+assert mixed["result"][1] == 4
 
 # a differently sized frame cannot be batched — name the file that broke it
 Image.new("RGB", (W + 2, H), (0, 0, 0)).save(os.path.join(d, "depth_12.png"))
 raises(lambda: Sequence().load("depth", 0, 0), "depth_12.png")
 
-# --- an object pass on transparent: alpha comes back as the erase mask, 1 where the object is
-obj = os.path.join(IN, "objpass")
-os.makedirs(obj, exist_ok=True)
-for i in (1, 2):
-    rgba = np.zeros((H, W, 4), dtype=np.uint8)
-    rgba[10:30, 10:40] = (200, 200, 200, 255)        # the object, opaque
-    Image.fromarray(rgba, mode="RGBA").save(os.path.join(obj, f"obj_{i}.png"))
-_, mask, count = Sequence().load("objpass", 0, 0)
-assert count == 2 and tuple(mask.shape) == (2, H, W), (count, mask.shape)
-assert float(mask[0, 20, 20]) == 1.0 and float(mask[0, 60, 60]) == 0.0, "alpha polarity is inverted"
-
 # the whole sequence -> a video, the way the graph does it
-seq3, _, _ = Sequence().load("depth", 0, 3)
+seq3, _ = Sequence().load("depth", 0, 3)
 assert video.images_to_mp4(seq3, 16, os.path.join(ROOT, "seq.mp4")) == 3
 
 print("VIDEO SMOKE OK")

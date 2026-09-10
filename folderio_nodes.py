@@ -571,9 +571,6 @@ class FolderIOSaveZip:
 class FolderIOLoadSequence:
     """Load a numbered frame sequence from an input/ subfolder as ONE batched IMAGE.
 
-    An object pass rendered on transparent comes back with its alpha on the second output, which
-    is exactly the erase mask for the matching frame of the generated orbit.
-
     The sibling loader above hands out a *list* — one graph pass per photo, which is what you
     want for per-photo work and exactly what you must not have for a video: a depth sequence
     has to arrive as a single [N,H,W,3] tensor, in frame order, to be encoded as one clip.
@@ -603,14 +600,9 @@ class FolderIOLoadSequence:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "INT")
-    RETURN_NAMES = ("images", "alpha", "frame_count")
-    OUTPUT_TOOLTIPS = (
-        "All frames as one batch, in name order.",
-        "The frames' alpha, 1 where a pixel is covered — an object pass rendered on transparent "
-        "gives an erase mask directly. Note the polarity is the opposite of Load Image's MASK.",
-        "How many frames were loaded.",
-    )
+    RETURN_TYPES = ("IMAGE", "INT")
+    RETURN_NAMES = ("images", "frame_count")
+    OUTPUT_TOOLTIPS = ("All frames as one batch, in name order.", "How many frames were loaded.")
     FUNCTION = "load"
     CATEGORY = "image/folder"
     DESCRIPTION = ("Loads a numbered frame sequence (a Blender depth or beauty render) from an "
@@ -661,13 +653,13 @@ class FolderIOLoadSequence:
 
     @staticmethod
     def _frame(path):
-        """One file -> ([H,W,3] float32 0..1 array, [H,W] alpha or None, a bit-depth label)."""
+        """One file -> ([H,W,3] float32 0..1 array, a label for the bit depth)."""
         img = node_helpers.pillow(Image.open, path)
         mode = img.mode
         if mode in ("I", "I;16", "I;16B", "I;16L", "I;16N"):
             # 16-bit grey (Blender depth). PIL hands these over as uint16, or int32 for "I".
             arr = np.asarray(img).astype(np.float32) / 65535.0
-            return np.repeat(arr[..., None], 3, axis=2), None, "16-bit"
+            return np.repeat(arr[..., None], 3, axis=2), "16-bit"
         if mode == "F":
             arr = np.asarray(img, dtype=np.float32)
             lo, hi = float(arr.min()), float(arr.max())
@@ -675,20 +667,17 @@ class FolderIOLoadSequence:
                 log.warning("[FolderIO] %s: float values %.3f..%.3f outside 0..1 — clipped. "
                             "Normalise the depth pass on export.", os.path.basename(path), lo, hi)
                 arr = np.clip(arr, 0.0, 1.0)
-            return np.repeat(arr[..., None], 3, axis=2), None, "float"
-        alpha = None
-        if "A" in img.getbands():
-            alpha = np.asarray(img.getchannel("A"), dtype=np.float32) / 255.0
+            return np.repeat(arr[..., None], 3, axis=2), "float"
         arr = np.asarray(_to_srgb(img), dtype=np.float32) / 255.0
-        return arr, alpha, "8-bit"
+        return arr, "8-bit"
 
     def load(self, folder, start_index, max_frames):
         d, rows = self._files(folder, start_index, max_frames)
         if not rows:
             raise ValueError(f"input/{folder}: no frames found ({', '.join(self.EXTS)})")
-        frames, alphas, depths, shape = [], [], set(), None
+        frames, depths, shape = [], set(), None
         for name, _, _ in rows:
-            arr, alpha, depth = self._frame(os.path.join(d, name))
+            arr, depth = self._frame(os.path.join(d, name))
             if shape is None:
                 shape = arr.shape
             elif arr.shape != shape:
@@ -697,22 +686,11 @@ class FolderIOLoadSequence:
                     f"starts at {shape[1]}x{shape[0]} — every frame must be the same size")
             depths.add(depth)
             frames.append(torch.from_numpy(np.ascontiguousarray(arr)))
-            alphas.append(alpha)
         images = torch.stack(frames, 0)
         h, w = shape[0], shape[1]
-        if any(a is not None for a in alphas):
-            blank = np.ones((h, w), dtype=np.float32)
-            mask = torch.stack([torch.from_numpy(np.ascontiguousarray(a if a is not None else blank))
-                                for a in alphas], 0)
-        else:
-            # Zeros, not ones: an all-white mask handed to an eraser would erase the whole frame.
-            # Nothing is transparent here, so nothing is covered.
-            mask = torch.zeros((len(frames), h, w), dtype=torch.float32)
-        log.info("[FolderIO] input/%s: %d frame(s) %dx%d, %s, alpha=%s (~%.2f GB as float32)",
-                 folder, len(frames), w, h, "/".join(sorted(depths)),
-                 "yes" if any(a is not None for a in alphas) else "none",
-                 images.numel() * 4 / 1e9)
-        result = (images, mask, len(frames))
+        log.info("[FolderIO] input/%s: %d frame(s) %dx%d, %s (~%.2f GB as float32)",
+                 folder, len(frames), w, h, "/".join(sorted(depths)), images.numel() * 4 / 1e9)
+        result = (images, len(frames))
         if len(depths) > 1:
             msg = (f"input/{folder} mixes {', '.join(sorted(depths))} frames — a depth sequence "
                    f"should be one format throughout, or the normalisation jumps mid-flight.")
