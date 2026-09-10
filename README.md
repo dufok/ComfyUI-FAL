@@ -204,7 +204,7 @@ One bar for everyday photo work, newest model per task. Masks follow ComfyUI con
 | Node | What it does |
 |---|---|
 | 📁 Load Images (upload folder) | *Upload folder… / Upload files…* buttons, or drop a folder onto the node: the files go to `input/<folder>/` through the stock `/upload/image` endpoint, one request per file (so proxies with small body caps are fine), and the folder is then selected on the node. Loads every photo as an IMAGE **list**, plus the original file stems and a count. EXIF orientation applied, embedded ICC (Display P3 phone shots) converted to sRGB, HEIC/HEIF/AVIF when `pillow-heif` is installed. |
-| 🎞 Load Frame Sequence (one batch) | The same upload buttons, but the folder is loaded as **one batched IMAGE** in natural name order — a numbered render sequence on its way into a video, not a list to iterate. 16-bit PNGs (what Blender writes for a depth pass) are read at full precision; `max_frames` is where you cut the sequence to a legal 4n+1 length. |
+| 🎞 Load Frame Sequence (one batch) | The same upload buttons, but the folder is loaded as **one batched IMAGE** in natural name order — a numbered render sequence on its way into a video, not a list to iterate. 16-bit PNGs (what Blender writes for a depth pass) are read at full precision; `max_frames` is where you cut the sequence to a legal 4n+1 length. The `alpha` output carries the frames' transparency, **1 where a pixel is covered** — an object pass rendered on transparent film is an erase mask for the matching frame of the orbit, no matte trickery. (Opposite polarity to Load Image's MASK, and empty when nothing is transparent: an all-white mask handed to an eraser would erase the frame.) |
 | ✂️ Split by Short Side | Hands out only the photos whose short side is below the target, plus their indices. |
 | 🔀 Merge Subset (by index) | Puts the processed photos back in place. `replacements` is a **lazy** input. |
 | 💾 Save Images + ZIP | Writes `output/<folder>/<stem><suffix>.<jpg\|png\|webp>`, zips this run's files atomically, shows the whole batch as a gallery on the node and gives you a **⬇ Download ZIP** button that survives a page reload, plus a `download_url` output. |
@@ -276,6 +276,14 @@ both cheaper and steadier. Type the arc into `arc_degrees` and the node does the
 
 **`preprocess` stays off.** On, FAL runs a depth estimator over the input — but the input already
 *is* depth.
+
+**Keep the subject in the depth pass**, even though the orbit is wanted for the space around it. An
+empty room seen from above is a smooth floor gradient with no silhouette and no parallax — there is
+nothing for the model to lock onto, and the rotation stops reading. An object standing on the floor
+gives all three, plus the contact point that fixes scale. It then has to come *out* of the frame you
+use as an appearance reference (a reference showing the same subject from another angle is the one
+thing that reliably steals the pose), and the erase is free: render the subject alone on transparent
+film for the same flight, load that sequence, and its `alpha` is the mask for `FAL Erase — Bria`.
 
 **Feeding it.** 🎞 *Load Frame Sequence* (in `image/folder`) turns a folder of rendered frames into one batch;
 the node encodes it to h264 itself, clamping to 0..1 on the way (clip the depth pass on the Blender
