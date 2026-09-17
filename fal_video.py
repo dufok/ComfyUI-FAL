@@ -37,6 +37,7 @@ import folder_paths
 
 from .folderio_nodes import VACE_MAX_FRAMES, VACE_MIN_FRAMES
 from .fal_common import (
+    subscribe,
     require_key,
     upload_image,
     upload_image_frames,
@@ -321,7 +322,7 @@ class FalWanVaceDepth:
         print(f"[FAL] {ENDPOINT} <- {dict(args, video_url=f'<depth {frames} frames>')}")
         print(f"[FAL] ~${estimate:.2f} at the 720p rate ({frames} frames / {NATIVE_FPS} fps)")
 
-        result = fal_client.subscribe(ENDPOINT, arguments=args, with_logs=False)
+        result = subscribe(ENDPOINT, args)
         url = file_url(result.get("video") if isinstance(result, dict) else None)
         if not url:
             raise RuntimeError(f"no video url in the FAL response: {result}")

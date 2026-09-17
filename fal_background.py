@@ -6,9 +6,8 @@ FAL background nodes via Bria (category: FAL/Background).
 
 Remove returns the cut-out as IMAGE + MASK (alpha = subject). Replace returns IMAGE(s).
 """
-import fal_client
-
 from .fal_common import (
+    subscribe,
     require_key,
     upload_image,
     deep_find,
@@ -34,11 +33,7 @@ class FalBriaBackgroundRemove:
         require_key()
         url = upload_image(image)
         print("[FAL] fal-ai/bria/background/remove")
-        result = fal_client.subscribe(
-            "fal-ai/bria/background/remove",
-            arguments={"image_url": url},
-            with_logs=False,
-        )
+        result = subscribe("fal-ai/bria/background/remove", {"image_url": url})
         out = deep_find(result, "image")
         img_url = out.get("url") if isinstance(out, dict) else (out if isinstance(out, str) else None)
         if not img_url:
@@ -84,12 +79,8 @@ class FalBriaBackgroundReplace:
         if seed:
             args["seed"] = int(seed)
         print(f"[FAL] fal-ai/bria/background/replace <- {args}")
-        result = fal_client.subscribe(
-            "fal-ai/bria/background/replace",
-            arguments=args,
-            with_logs=False,
-        )
-        return (images_from_result(result),)
+        result = subscribe("fal-ai/bria/background/replace", args)
+        return (images_from_result(result, "fal-ai/bria/background/replace"),)
 
 
 NODE_CLASS_MAPPINGS = {

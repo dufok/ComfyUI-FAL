@@ -1,0 +1,2014 @@
+{
+"endpoints": {
+"bria/fibo-edit/restore": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"bria/genfill/v2": {
+"required": [
+"image_url",
+"mask_url",
+"instruction"
+],
+"fields": {}
+},
+"bytedance/seedream/v5/lite/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9",
+"auto_2K",
+"auto_3K",
+"auto_4K"
+]
+}
+}
+},
+"bytedance/seedream/v5/pro/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9",
+"auto_1K",
+"auto_2K"
+]
+}
+}
+},
+"fal-ai/bria/background/remove": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/bria/background/replace": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/bria/eraser": {
+"required": [
+"image_url",
+"mask_url"
+],
+"fields": {
+"mask_type": {
+"enum": [
+"manual",
+"automatic"
+]
+}
+}
+},
+"fal-ai/bria/expand": {
+"required": [
+"image_url",
+"canvas_size"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"1:1",
+"2:3",
+"3:2",
+"3:4",
+"4:3",
+"4:5",
+"5:4",
+"9:16",
+"16:9"
+]
+}
+}
+},
+"fal-ai/bytedance/seedream/v4.5/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9",
+"auto_2K",
+"auto_4K"
+]
+}
+}
+},
+"fal-ai/clarity-upscaler": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/ddcolor": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/drct-super-resolution": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/finegrain-eraser": {
+"required": [
+"image_url",
+"prompt"
+],
+"fields": {
+"mode": {
+"enum": [
+"express",
+"standard",
+"premium"
+]
+}
+}
+},
+"fal-ai/flux-general": {
+"required": [
+"prompt"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+},
+"scheduler": {
+"enum": [
+"euler",
+"dpmpp_2m"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9"
+]
+}
+}
+},
+"fal-ai/flux-pro/kontext": {
+"required": [
+"prompt",
+"image_url"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"21:9",
+"16:9",
+"4:3",
+"3:2",
+"1:1",
+"2:3",
+"3:4",
+"9:16",
+"9:21"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/flux-pro/kontext/max": {
+"required": [
+"prompt",
+"image_url"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"21:9",
+"16:9",
+"4:3",
+"3:2",
+"1:1",
+"2:3",
+"3:4",
+"9:16",
+"9:21"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/flux-pro/kontext/max/multi": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"21:9",
+"16:9",
+"4:3",
+"3:2",
+"1:1",
+"2:3",
+"3:4",
+"9:16",
+"9:21"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/flux-pro/kontext/multi": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"21:9",
+"16:9",
+"4:3",
+"3:2",
+"1:1",
+"2:3",
+"3:4",
+"9:16",
+"9:21"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/flux-pro/v1/erase": {
+"required": [
+"image_url",
+"mask_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/flux-pro/v1/fill": {
+"required": [
+"prompt",
+"image_url",
+"mask_url"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/flux-pro/v1/fill-finetuned": {
+"required": [
+"prompt",
+"image_url",
+"mask_url",
+"finetune_id",
+"finetune_strength"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/gemini-25-flash-image": {
+"required": [
+"prompt"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+}
+}
+},
+"fal-ai/gemini-25-flash-image/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+}
+}
+},
+"fal-ai/gemini-3-pro-image-preview": {
+"required": [
+"prompt"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"resolution": {
+"enum": [
+"1K",
+"2K",
+"4K"
+]
+}
+}
+},
+"fal-ai/gemini-3-pro-image-preview/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"resolution": {
+"enum": [
+"1K",
+"2K",
+"4K"
+]
+}
+}
+},
+"fal-ai/gemini-3.1-flash-image-preview": {
+"required": [
+"prompt"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16",
+"4:1",
+"1:4",
+"8:1",
+"1:8"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"resolution": {
+"enum": [
+"0.5K",
+"1K",
+"2K",
+"4K"
+]
+},
+"thinking_level": {
+"enum": [
+"minimal",
+"high"
+]
+}
+}
+},
+"fal-ai/gemini-3.1-flash-image-preview/edit": {
+"required": [
+"prompt"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16",
+"4:1",
+"1:4",
+"8:1",
+"1:8"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"thinking_level": {
+"enum": [
+"minimal",
+"high"
+]
+},
+"resolution": {
+"enum": [
+"0.5K",
+"1K",
+"2K",
+"4K"
+]
+}
+}
+},
+"fal-ai/hunyuan-3d/v3.1/pro/image-to-3d": {
+"required": [
+"input_image_url"
+],
+"fields": {
+"generate_type": {
+"enum": [
+"Normal",
+"Geometry"
+]
+}
+}
+},
+"fal-ai/hunyuan-3d/v3.1/rapid/image-to-3d": {
+"required": [
+"input_image_url"
+],
+"fields": {}
+},
+"fal-ai/hunyuan-3d/v3.1/smart-topology": {
+"required": [],
+"fields": {
+"input_file_type": {
+"enum": [
+"glb",
+"obj"
+]
+},
+"face_level": {
+"enum": [
+"high",
+"medium",
+"low"
+]
+},
+"polygon_type": {
+"enum": [
+"triangle",
+"quadrilateral"
+]
+}
+}
+},
+"fal-ai/hunyuan3d-v3/sketch-to-3d": {
+"required": [
+"input_image_url",
+"prompt"
+],
+"fields": {}
+},
+"fal-ai/hunyuan3d/v2": {
+"required": [
+"input_image_url"
+],
+"fields": {}
+},
+"fal-ai/image2svg": {
+"required": [
+"image_url"
+],
+"fields": {
+"mode": {
+"enum": [
+"spline",
+"polygon"
+]
+},
+"colormode": {
+"enum": [
+"color",
+"binary"
+]
+},
+"hierarchical": {
+"enum": [
+"stacked",
+"cutout"
+]
+}
+}
+},
+"fal-ai/meshy/rigging": {
+"required": [
+"model_url"
+],
+"fields": {}
+},
+"fal-ai/meshy/v5/remesh": {
+"required": [
+"model_url"
+],
+"fields": {
+"topology": {
+"enum": [
+"quad",
+"triangle"
+]
+},
+"origin_at": {
+"enum": [
+"bottom",
+"center"
+]
+}
+}
+},
+"fal-ai/nafnet/deblur": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/nafnet/denoise": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/nano-banana": {
+"required": [
+"prompt"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+}
+}
+},
+"fal-ai/nano-banana-2": {
+"required": [
+"prompt"
+],
+"fields": {
+"resolution": {
+"enum": [
+"0.5K",
+"1K",
+"2K",
+"4K"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16",
+"4:1",
+"1:4",
+"8:1",
+"1:8"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"thinking_level": {
+"enum": [
+"minimal",
+"high"
+]
+}
+}
+},
+"fal-ai/nano-banana-2/edit": {
+"required": [
+"prompt"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16",
+"4:1",
+"1:4",
+"8:1",
+"1:8"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"thinking_level": {
+"enum": [
+"minimal",
+"high"
+]
+},
+"resolution": {
+"enum": [
+"0.5K",
+"1K",
+"2K",
+"4K"
+]
+}
+}
+},
+"fal-ai/nano-banana-pro": {
+"required": [
+"prompt"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"resolution": {
+"enum": [
+"1K",
+"2K",
+"4K"
+]
+}
+}
+},
+"fal-ai/nano-banana-pro/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"resolution": {
+"enum": [
+"1K",
+"2K",
+"4K"
+]
+}
+}
+},
+"fal-ai/nano-banana/edit": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16"
+]
+}
+}
+},
+"fal-ai/object-removal": {
+"required": [
+"image_url",
+"prompt"
+],
+"fields": {
+"model": {
+"enum": [
+"low_quality",
+"medium_quality",
+"high_quality",
+"best_quality"
+]
+}
+}
+},
+"fal-ai/object-removal/mask": {
+"required": [
+"image_url",
+"mask_url"
+],
+"fields": {
+"model": {
+"enum": [
+"low_quality",
+"medium_quality",
+"high_quality",
+"best_quality"
+]
+}
+}
+},
+"fal-ai/patina": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+}
+}
+},
+"fal-ai/patina/material": {
+"required": [
+"prompt"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9"
+]
+},
+"tiling_mode": {
+"enum": [
+"both",
+"horizontal",
+"vertical"
+]
+},
+"upscale_factor": {
+"enum": [
+0,
+2,
+4
+]
+}
+}
+},
+"fal-ai/patina/material/extract": {
+"required": [
+"prompt",
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"upscale_factor": {
+"enum": [
+0,
+2,
+4
+]
+},
+"tiling_mode": {
+"enum": [
+"both",
+"horizontal",
+"vertical"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9"
+]
+}
+}
+},
+"fal-ai/post-processing/color-correction": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/post-processing/grain": {
+"required": [
+"image_url"
+],
+"fields": {
+"grain_style": {
+"enum": [
+"modern",
+"analog",
+"kodak",
+"fuji",
+"cinematic",
+"newspaper"
+]
+}
+}
+},
+"fal-ai/post-processing/sharpen": {
+"required": [
+"image_url"
+],
+"fields": {
+"sharpen_mode": {
+"enum": [
+"basic",
+"smart",
+"cas"
+]
+}
+}
+},
+"fal-ai/post-processing/vignette": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/qwen-image-edit-2511": {
+"required": [
+"prompt",
+"image_urls"
+],
+"fields": {
+"acceleration": {
+"enum": [
+"none",
+"regular",
+"high"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9"
+]
+}
+}
+},
+"fal-ai/qwen-image-edit/inpaint": {
+"required": [
+"prompt",
+"image_url",
+"mask_url"
+],
+"fields": {
+"acceleration": {
+"enum": [
+"none",
+"regular",
+"high"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/recraft/upscale/crisp": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/recraft/vectorize": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"fal-ai/seedvr/upscale/image": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"png",
+"jpg",
+"webp"
+]
+},
+"target_resolution": {
+"enum": [
+"720p",
+"1080p",
+"1440p",
+"2160p"
+]
+},
+"upscale_mode": {
+"enum": [
+"target",
+"factor"
+]
+}
+}
+},
+"fal-ai/seedvr/upscale/image/seamless": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"png",
+"jpeg",
+"webp"
+]
+},
+"target_resolution": {
+"enum": [
+"720p",
+"1080p",
+"1440p",
+"2160p"
+]
+},
+"upscale_mode": {
+"enum": [
+"target",
+"factor"
+]
+}
+}
+},
+"fal-ai/topaz/upscale/image": {
+"required": [
+"image_url"
+],
+"fields": {
+"enhancement_strength": {
+"enum": [
+"low",
+"medium",
+"high"
+]
+},
+"subject_detection": {
+"enum": [
+"All",
+"Foreground",
+"Background"
+]
+},
+"model": {
+"enum": [
+"Standard V2",
+"High Fidelity V2",
+"Low Resolution V2",
+"CGI",
+"Text Refine",
+"Wonder 3",
+"Wonder",
+"Standard MAX",
+"Redefine",
+"Recovery V2",
+"Recovery"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"fal-ai/trellis": {
+"required": [
+"image_url"
+],
+"fields": {
+"texture_size": {
+"enum": [
+512,
+1024,
+2048
+]
+}
+}
+},
+"fal-ai/wan-vace-14b/depth": {
+"required": [
+"prompt",
+"video_url"
+],
+"fields": {
+"interpolator_model": {
+"enum": [
+"rife",
+"film"
+]
+},
+"sampler": {
+"enum": [
+"unipc",
+"dpm++",
+"euler"
+]
+},
+"acceleration": {
+"enum": [
+"none",
+"low",
+"regular"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"16:9",
+"1:1",
+"9:16"
+]
+},
+"transparency_mode": {
+"enum": [
+"content_aware",
+"white",
+"black"
+]
+},
+"video_write_mode": {
+"enum": [
+"fast",
+"balanced",
+"small"
+]
+},
+"resolution": {
+"enum": [
+"auto",
+"240p",
+"360p",
+"480p",
+"580p",
+"720p"
+]
+},
+"video_quality": {
+"enum": [
+"low",
+"medium",
+"high",
+"maximum"
+]
+}
+}
+},
+"fal-ai/z-image/turbo/inpaint": {
+"required": [
+"prompt",
+"image_url",
+"mask_image_url"
+],
+"fields": {
+"acceleration": {
+"enum": [
+"none",
+"regular",
+"high"
+]
+},
+"image_size": {
+"enum": [
+"square_hd",
+"square",
+"portrait_4_3",
+"portrait_16_9",
+"landscape_4_3",
+"landscape_16_9",
+"auto"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+}
+}
+},
+"google/nano-banana-2-lite": {
+"required": [
+"prompt"
+],
+"fields": {
+"thinking_level": {
+"enum": [
+"minimal",
+"high"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16",
+"4:1",
+"1:4",
+"8:1",
+"1:8"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+}
+}
+},
+"google/nano-banana-2-lite/edit": {
+"required": [
+"prompt"
+],
+"fields": {
+"thinking_level": {
+"enum": [
+"minimal",
+"high"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png",
+"webp"
+]
+},
+"aspect_ratio": {
+"enum": [
+"auto",
+"21:9",
+"16:9",
+"3:2",
+"4:3",
+"5:4",
+"1:1",
+"4:5",
+"3:4",
+"2:3",
+"9:16",
+"4:1",
+"1:4",
+"8:1",
+"1:8"
+]
+},
+"safety_tolerance": {
+"enum": [
+"1",
+"2",
+"3",
+"4",
+"5",
+"6"
+]
+}
+}
+},
+"hitem3d/hi3d/image-to-3d": {
+"required": [
+"image_url"
+],
+"fields": {
+"export_format": {
+"enum": [
+"glb",
+"obj",
+"stl",
+"fbx",
+"usdz"
+]
+},
+"model": {
+"enum": [
+"hitem3dv1.5",
+"hitem3dv2.0",
+"hitem3dv2.1",
+"scene-portraitv1.5",
+"scene-portraitv2.0",
+"scene-portraitv2.1"
+]
+},
+"resolution": {
+"enum": [
+"512",
+"1024",
+"1536",
+"1536pro",
+"1536fast",
+"1536profast"
+]
+}
+}
+},
+"hitem3d/hi3d/v3.0/image-to-3d": {
+"required": [
+"image_url"
+],
+"fields": {
+"export_format": {
+"enum": [
+"glb",
+"obj",
+"stl",
+"fbx",
+"usdz"
+]
+},
+"resolution": {
+"enum": [
+"2048quality",
+"2048master"
+]
+}
+}
+},
+"hitem3d/hi3d/v3.0/multi-view-to-3d": {
+"required": [],
+"fields": {
+"export_format": {
+"enum": [
+"glb",
+"obj",
+"stl",
+"fbx",
+"usdz"
+]
+},
+"resolution": {
+"enum": [
+"2048quality",
+"2048master"
+]
+}
+}
+},
+"meshy/v7/image-to-3d": {
+"required": [
+"image_url"
+],
+"fields": {
+"pose_mode": {
+"enum": [
+"a-pose",
+"t-pose",
+""
+]
+},
+"symmetry_mode": {
+"enum": [
+"off",
+"auto",
+"on"
+]
+},
+"topology": {
+"enum": [
+"quad",
+"triangle"
+]
+},
+"model_type": {
+"enum": [
+"standard",
+"lowpoly",
+"smart-topology"
+]
+}
+}
+},
+"meshy/v7/multi-image-to-3d": {
+"required": [
+"image_urls"
+],
+"fields": {
+"pose_mode": {
+"enum": [
+"a-pose",
+"t-pose",
+""
+]
+},
+"symmetry_mode": {
+"enum": [
+"off",
+"auto",
+"on"
+]
+},
+"topology": {
+"enum": [
+"quad",
+"triangle"
+]
+}
+}
+},
+"openrouter/router": {
+"required": [
+"prompt",
+"model"
+],
+"fields": {}
+},
+"openrouter/router/vision": {
+"required": [
+"prompt",
+"model"
+],
+"fields": {}
+},
+"topaz/restore/image": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+},
+"model": {
+"enum": [
+"Recover 3",
+"Dust-Scratch V2",
+"Faces"
+]
+}
+}
+},
+"topaz/upscale/image/creative": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+},
+"model": {
+"enum": [
+"Bloom 2",
+"Bloom",
+"Bloom Realism"
+]
+}
+}
+},
+"topaz/upscale/image/generative": {
+"required": [
+"image_url"
+],
+"fields": {
+"enhancement_strength": {
+"enum": [
+"low",
+"medium",
+"high"
+]
+},
+"subject_detection": {
+"enum": [
+"All",
+"Foreground",
+"Background"
+]
+},
+"model": {
+"enum": [
+"Wonder 3.5",
+"Wonder 3",
+"Wonder 2",
+"Wonder",
+"Recover 3",
+"Standard MAX",
+"Redefine",
+"Recovery V2",
+"Recovery"
+]
+},
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+}
+}
+},
+"topaz/upscale/image/precision": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"jpeg",
+"png"
+]
+},
+"subject_detection": {
+"enum": [
+"All",
+"Foreground",
+"Background"
+]
+},
+"model": {
+"enum": [
+"Standard V2",
+"High Fidelity V3",
+"High Fidelity V2",
+"Low Resolution V2",
+"CGI",
+"Text Refine",
+"Faces"
+]
+}
+}
+},
+"topaz/upscale/image/transparent": {
+"required": [
+"image_url"
+],
+"fields": {}
+},
+"tripo3d/h3.1/image-to-3d": {
+"required": [
+"image_url"
+],
+"fields": {
+"texture_alignment": {
+"enum": [
+"original_image",
+"geometry"
+]
+},
+"texture_quality": {
+"enum": [
+"standard",
+"detailed"
+]
+},
+"orientation": {
+"enum": [
+"default",
+"align_image"
+]
+},
+"geometry_quality": {
+"enum": [
+"standard",
+"detailed"
+]
+}
+}
+},
+"tripo3d/tripo/remesh": {
+"required": [
+"mesh_url"
+],
+"fields": {}
+},
+"tripo3d/tripo/segment": {
+"required": [
+"mesh_url"
+],
+"fields": {}
+},
+"tripo3d/tripo/v2.5/image-to-3d": {
+"required": [
+"image_url"
+],
+"fields": {
+"texture_alignment": {
+"enum": [
+"original_image",
+"geometry"
+]
+},
+"texture": {
+"enum": [
+"no",
+"standard",
+"HD"
+]
+},
+"style": {
+"enum": [
+"person:person2cartoon",
+"object:clay",
+"object:steampunk",
+"animal:venom",
+"object:barbie",
+"object:christmas",
+"gold",
+"ancient_bronze"
+]
+},
+"orientation": {
+"enum": [
+"default",
+"align_image"
+]
+}
+}
+},
+"tripo3d/triposplat": {
+"required": [
+"image_url"
+],
+"fields": {
+"output_format": {
+"enum": [
+"ply",
+"splat"
+]
+}
+}
+}
+}
+}

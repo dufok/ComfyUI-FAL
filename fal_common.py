@@ -9,6 +9,7 @@ Auth: reads FAL_KEY from the environment (passed via docker-compose, same as the
 gokayfem ComfyUI-fal-API pack). fal_client is already installed in the image.
 """
 import io
+import json
 import os
 import tempfile
 import urllib.request
@@ -29,6 +30,196 @@ def require_key():
             "FAL_KEY is not set in the container environment. "
             "It is normally passed in via docker-compose from ~/comfyui-docker/.env."
         )
+
+
+# --------------------------------------------------------------------------- schema cache
+
+SCHEMA_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fal_schema.json")
+_SCHEMA = None
+
+
+def _schema_for(endpoint):
+    """Cached input schema for one endpoint, or None when the cache is absent.
+
+    Written by `fal_registry.py limits` straight from FAL's public OpenAPI. Nothing in
+    here is hand-typed on purpose: a hand-typed limit drifts, and a drifted limit is
+    worse than no limit — it starts refusing calls FAL would have accepted.
+    """
+    global _SCHEMA
+    if _SCHEMA is None:
+        try:
+            with open(SCHEMA_CACHE) as f:
+                _SCHEMA = json.load(f).get("endpoints", {})
+        except (OSError, ValueError):
+            _SCHEMA = {}
+    return _SCHEMA.get(endpoint)
+
+
+# --------------------------------------------------------------------------- validation
+
+_MEDIA_SUFFIXES = ("_url", "_urls", "_image", "_images", "_mask", "_video", "_audio")
+_MEDIA_NAMES = {"image", "images", "mask", "video", "audio", "url", "urls", "medias"}
+
+
+def _is_media_key(name):
+    return name in _MEDIA_NAMES or name.endswith(_MEDIA_SUFFIXES)
+
+
+def _media_problems(arguments):
+    """Media keys that carry nothing.
+
+    Nodes only add a media key once the upload returned something, so an empty one here
+    means the upload produced nothing and nobody noticed. FAL answers that with a schema
+    error naming the field but not the cause; this names the cause, before the call.
+    """
+    out = []
+    for name, val in arguments.items():
+        if not _is_media_key(name):
+            continue
+        if val is None or (isinstance(val, str) and not val.strip()):
+            out.append(f"{name} is empty")
+        elif isinstance(val, (list, tuple)):
+            if not val:
+                out.append(f"{name} is an empty list")
+            else:
+                blank = [i for i, v in enumerate(val)
+                         if v is None or (isinstance(v, str) and not v.strip())]
+                if blank:
+                    out.append(f"{name} has empty entries at {blank}")
+    return out
+
+
+def _schema_problems(endpoint, arguments):
+    """Required fields, list bounds and enum values, checked against FAL's own schema."""
+    spec = _schema_for(endpoint)
+    if not spec:
+        return []
+    out = []
+    for name in spec.get("required", []):
+        if name not in arguments:
+            out.append(f"missing required '{name}'")
+    fields = spec.get("fields") or {}
+    for name, val in arguments.items():
+        f = fields.get(name)
+        if not f:
+            continue
+        if isinstance(val, (list, tuple)):
+            hi, lo = f.get("max_items"), f.get("min_items")
+            if hi is not None and len(val) > hi:
+                out.append(f"{name}: {len(val)} items, model takes at most {hi}")
+            if lo is not None and len(val) < lo:
+                out.append(f"{name}: {len(val)} items, model needs at least {lo}")
+        allowed = f.get("enum")
+        if allowed and isinstance(val, str) and val not in allowed:
+            out.append(f"{name}={val!r} not allowed (allowed: {', '.join(map(str, allowed))})")
+    return out
+
+
+def validate_arguments(endpoint, arguments):
+    """Refuse locally what FAL would refuse remotely — before the money leaves.
+
+    FAL_SKIP_VALIDATION=1 turns this off. That escape hatch is the point of the whole
+    design: a stale cache must never be able to block a call FAL itself would take.
+    """
+    if os.environ.get("FAL_SKIP_VALIDATION", "").strip():
+        return
+    problems = _media_problems(arguments) + _schema_problems(endpoint, arguments)
+    if problems:
+        raise RuntimeError(
+            f"{endpoint}: not sent — " + "; ".join(problems)
+            + f"\n  check with `fal_registry.py schema {endpoint}`, "
+              "or set FAL_SKIP_VALIDATION=1 to send anyway")
+
+
+# --------------------------------------------------------------------------- the FAL call
+
+# Older fal_client releases do not export these; an empty tuple in `except` is legal and
+# simply never matches, so the pack keeps working against whatever version the image has.
+_HTTP_ERROR = getattr(fal_client, "FalClientHTTPError", ())
+_TIMEOUT_ERROR = getattr(fal_client, "FalClientTimeoutError", ())
+
+_POLICY_HINTS = ("nsfw", "content_policy", "content-policy", "content policy",
+                 "safety", "moderation", "prohibited", "ip_detected")
+
+
+def _describe_http_error(endpoint, e):
+    """Say which kind of refusal this is, because the three need opposite reactions.
+
+    A content refusal needs a different prompt, a schema refusal needs different
+    arguments, a 5xx needs nothing but patience. They used to read identically.
+
+    Retrying stays a human decision on purpose: a job that failed after FAL accepted it
+    has already been charged, so an automatic retry would quietly double the bill.
+    """
+    code = getattr(e, "status_code", None)
+    etype = (getattr(e, "error_type", None) or "").lower()
+    if not etype:
+        headers = getattr(e, "response_headers", None) or {}
+        try:
+            etype = str(headers.get("x-fal-error-type", "") or "").lower()
+        except Exception:
+            etype = ""
+    body = str(getattr(e, "message", "") or e)
+    blob = f"{etype} {body}".lower()
+
+    if any(h in blob for h in _POLICY_HINTS):
+        return (f"{endpoint}: refused by the content filter"
+                + (f" [{etype}]" if etype else "")
+                + " — rephrase the prompt or swap the reference; the same input will refuse again."
+                + f"\n  {body}")
+    if "file_too_large" in blob or "exceeds the maximum allowed size" in blob:
+        return (f"{endpoint}: an uploaded file is over this endpoint's size limit — scale the image "
+                f"down before this node (ImageScale, long side ~2048). Resubmitting as is refuses "
+                f"again.\n  {body}")
+    if code == 422:
+        return (f"{endpoint}: FAL rejected the arguments (422) — compare field names and values "
+                f"with `fal_registry.py schema {endpoint}`.\n  {body}")
+    if code == 429:
+        return (f"{endpoint}: rate limited (429) — too many requests in flight, wait and resubmit."
+                f"\n  {body}")
+    if code in (401, 403):
+        return (f"{endpoint}: FAL rejected the key ({code}) — check FAL_KEY in the container env."
+                f"\n  {body}")
+    if code and code >= 500:
+        return f"{endpoint}: FAL server error ({code}) — their side, safe to resubmit.\n  {body}"
+    return f"{endpoint}: FAL error{f' ({code})' if code else ''}\n  {body}"
+
+
+def subscribe(endpoint, arguments):
+    """The one door to FAL: validate, call, translate the failure.
+
+    Every node in the pack goes through here, so a refusal reads the same wherever it
+    happens and never arrives as a bare stack trace.
+    """
+    require_key()
+    validate_arguments(endpoint, arguments)
+    try:
+        return fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    except _HTTP_ERROR as e:
+        raise RuntimeError(_describe_http_error(endpoint, e)) from e
+    except _TIMEOUT_ERROR as e:
+        raise RuntimeError(
+            f"{endpoint}: timed out waiting for the result. The job may still be running on FAL "
+            f"and is billable either way — check the dashboard before resubmitting.\n  {e}") from e
+
+
+def check_content_filter(result, endpoint=""):
+    """FAL's safety checker returns blank frames and a flag, never an error.
+
+    Left unread, a flagged frame travels downstream as a finished render — exactly the
+    silent-black-image failure images_from_result already refuses to allow.
+    """
+    flags = result.get("has_nsfw_concepts") if isinstance(result, dict) else None
+    if not isinstance(flags, (list, tuple)) or not any(flags):
+        return
+    hit, total = sum(1 for f in flags if f), len(flags)
+    where = f"{endpoint}: " if endpoint else ""
+    if hit == total:
+        raise RuntimeError(
+            f"{where}the safety checker flagged every image ({hit}/{total}) — what came back is "
+            f"blank frames, not a render. Rephrase, or set enable_safety_checker=false on models "
+            f"that expose it.")
+    print(f"[FAL] warning: safety checker flagged {hit} of {total} images — those come back blank.")
 
 
 # --------------------------------------------------------------------------- upload
@@ -204,7 +395,7 @@ def _collect_image_urls(result):
     return urls
 
 
-def images_from_result(result):
+def images_from_result(result, endpoint=""):
     """Turn a FAL image result into a batched [N,H,W,3] IMAGE tensor.
 
     Raises rather than returning a blank frame. A silent black image is worse than an
@@ -212,6 +403,7 @@ def images_from_result(result):
     driving ComfyUI headlessly (a Blender add-on, a script) treats the black frame as
     the render. Fail loudly instead.
     """
+    check_content_filter(result, endpoint)
     urls = _collect_image_urls(result)
     tensors, failed = [], []
     for u in urls:
@@ -239,11 +431,10 @@ def images_from_result(result):
 
 def run_image(endpoint, arguments):
     """submit -> wait -> batched IMAGE tensor from any FAL image endpoint."""
-    require_key()
     printable = {k: (f"<{len(v)} urls>" if k == "image_urls" else v) for k, v in arguments.items()}
     print(f"[FAL] {endpoint} <- {printable}")
-    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
-    return images_from_result(result)
+    result = subscribe(endpoint, arguments)
+    return images_from_result(result, endpoint)
 
 
 def run_image_described(endpoint, arguments):
@@ -253,14 +444,13 @@ def run_image_described(endpoint, arguments):
     it is where the model explains what it did, and where `thinking_level` output
     surfaces. Every other wrapper throws it away; here it becomes a STRING output.
     """
-    require_key()
     printable = {k: (f"<{len(v)} urls>" if k == "image_urls" else v) for k, v in arguments.items()}
     print(f"[FAL] {endpoint} <- {printable}")
-    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    result = subscribe(endpoint, arguments)
     description = result.get("description") if isinstance(result, dict) else None
     if description:
         print(f"[FAL] description: {description}")
-    return images_from_result(result), (description or "")
+    return images_from_result(result, endpoint), (description or "")
 
 
 # --------------------------------------------------------------------------- text runner
@@ -272,10 +462,9 @@ def run_text(endpoint, arguments):
     becomes an empty prompt on the next node and the graph completes green — so every
     failure mode raises instead.
     """
-    require_key()
     printable = {k: (f"<{len(v)} urls>" if k.endswith("_urls") else v) for k, v in arguments.items()}
     print(f"[FAL] {endpoint} <- {printable}")
-    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    result = subscribe(endpoint, arguments)
     if not isinstance(result, dict):
         raise RuntimeError(f"{endpoint}: unexpected response {result!r}")
     # openrouter/router can answer 200 with an `error` string and an empty output.
@@ -365,9 +554,8 @@ def run_mesh(endpoint, arguments, prefix, want_preview=True):
     `glb_file` is relative to ComfyUI's output dir — wire it straight into the core
     Preview3D node (model_file) for an interactive in-graph 3D view.
     """
-    require_key()
     print(f"[FAL] {endpoint} <- {arguments}")
-    result = fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+    result = subscribe(endpoint, arguments)
     url = mesh_url(result)
     if not url:
         raise RuntimeError(f"no mesh url in FAL response: {result}")

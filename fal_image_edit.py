@@ -21,9 +21,8 @@ One bar for everyday photo work — the newest FAL models per task, cheapest-fir
 
 Masks follow ComfyUI convention: MASK 1.0 = area to remove/inpaint (uploaded as white).
 """
-import fal_client
-
 from .fal_common import (
+    subscribe,
     run_image,
     upload_image,
     upload_image_frames,
@@ -920,7 +919,7 @@ def _run_svg(endpoint, args, prefix):
     """Call an image->SVG endpoint, save the .svg into output/, return (file, url, info)."""
     require_key()
     print(f"[FAL] {endpoint}")
-    result = fal_client.subscribe(endpoint, arguments=args, with_logs=False)
+    result = subscribe(endpoint, args)
     node = deep_find(result, "image") or deep_find(result, "images")
     if isinstance(node, list):
         node = node[0] if node else None

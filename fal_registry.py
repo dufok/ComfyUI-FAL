@@ -17,9 +17,12 @@ Commands:
     category <name>       list models in a category (e.g. image-to-3d)
     diff                  compare live FAL vs cached fal_catalog.json -> added / removed
     schema <endpoint_id>  print the Input parameters (name, type, default) from queue-OpenAPI
+    limits [endpoint...]  cache the input schemas the nodes validate against -> fal_schema.json
+                          (no args = every endpoint the pack actually calls)
 """
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -182,9 +185,110 @@ def cmd_schema(args):
         print("OUTPUT properties:", list(out.get("properties", {})))
 
 
+# --------------------------------------------------------------------------- schema cache for the nodes
+
+SCHEMA_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fal_schema.json")
+
+
+def _resolve(spec, schemas, depth=0):
+    """Follow $ref / anyOf one level down so an enum behind a reference is still seen."""
+    if not isinstance(spec, dict) or depth > 3:
+        return spec if isinstance(spec, dict) else {}
+    ref = spec.get("$ref")
+    if ref and ref.startswith("#/components/schemas/"):
+        return _resolve(schemas.get(ref.rsplit("/", 1)[-1], {}), schemas, depth + 1)
+    for key in ("anyOf", "allOf", "oneOf"):
+        for branch in spec.get(key) or []:
+            got = _resolve(branch, schemas, depth + 1)
+            if got.get("enum") or got.get("type") == "array":
+                return got
+    return spec
+
+
+def _endpoints_in_pack():
+    """Endpoint ids the nodes can call, read out of the source rather than grepped.
+
+    Two passes, because the pack names endpoints two ways. Literals handed straight to a
+    runner are certain. The rest live in constants and lookup tables (TIERS, ALIASES,
+    PRECISION, …) that a tier or a dropdown picks between at runtime, so those are caught
+    by shape: lowercase, slashed, no spaces. That shape also matches a few strings that
+    are not endpoints at all (a HuggingFace encoder id, say) — harmless, they simply come
+    back without a schema and get listed as skipped.
+    """
+    import ast
+    runners = {"subscribe", "run_image", "run_image_described", "run_mesh", "run_text"}
+    shape = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)+$")
+    here = os.path.dirname(os.path.abspath(__file__))
+    called, shaped = set(), set()
+    for fn in sorted(os.listdir(here)):
+        if not fn.startswith("fal_") or not fn.endswith(".py") or fn == "fal_registry.py":
+            continue
+        tree = ast.parse(open(os.path.join(here, fn)).read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and node.args:
+                name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+                if name in runners and isinstance(node.args[0], ast.Constant) \
+                        and isinstance(node.args[0].value, str):
+                    called.add(node.args[0].value)
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                    and shape.match(node.value):
+                shaped.add(node.value)
+    return sorted(called | shaped), called
+
+
+def cmd_limits(args):
+    """Cache every called endpoint's input schema -> fal_schema.json (read by fal_common).
+
+    The nodes validate against this before paying for a call. It is generated, never
+    edited: a hand-typed bound drifts away from FAL's and starts rejecting good calls.
+    """
+    if args:
+        eids, called = args, set(args)
+    else:
+        eids, called = _endpoints_in_pack()
+    print(f"{len(eids)} endpoint(s) to fetch ({len(called)} seen as direct calls)")
+    out, failed = {}, []
+    for eid in eids:
+        st, j = _get(f"{SCHEMA_API}?endpoint_id={urllib.parse.quote(eid, safe='')}", auth=False)
+        if st != 200:
+            failed.append(f"{eid} ({st})")
+            continue
+        schemas = j.get("components", {}).get("schemas", {})
+        inp = next((v for k, v in schemas.items() if k.lower().endswith("input")), None)
+        if not inp:
+            failed.append(f"{eid} (no Input schema)")
+            continue
+        fields = {}
+        for name, raw in (inp.get("properties") or {}).items():
+            spec = _resolve(raw, schemas)
+            f = {}
+            if spec.get("type") == "array" or raw.get("type") == "array":
+                for src_spec in (spec, raw):
+                    if "maxItems" in src_spec:
+                        f["max_items"] = src_spec["maxItems"]
+                    if "minItems" in src_spec:
+                        f["min_items"] = src_spec["minItems"]
+            enum = spec.get("enum") or raw.get("enum")
+            if enum:
+                f["enum"] = enum
+            if f:
+                fields[name] = f
+        out[eid] = {"required": inp.get("required", []), "fields": fields}
+        bounded = sum(1 for f in fields.values() if "max_items" in f or "min_items" in f)
+        print(f"  {eid:55} {len(inp.get('required', [])):2} required, "
+              f"{len(fields):2} constrained ({bounded} list-bounded)")
+    with open(SCHEMA_CACHE, "w") as f:
+        json.dump({"endpoints": out}, f, ensure_ascii=False, indent=0)
+    print(f"wrote {len(out)} endpoints -> {SCHEMA_CACHE}")
+    if failed:
+        print(f"no schema for {len(failed)}: " + ", ".join(failed))
+        print("(those simply go unvalidated — the nodes still run)")
+
+
 _CMDS = {
     "fetch": cmd_fetch, "search": cmd_search, "favorites": cmd_favorites,
     "category": cmd_category, "diff": cmd_diff, "schema": cmd_schema,
+    "limits": cmd_limits,
 }
 
 if __name__ == "__main__":

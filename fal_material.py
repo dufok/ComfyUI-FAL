@@ -35,13 +35,12 @@ does exactly that) — applying one would quietly corrupt roughness and displace
 import torch
 
 from .fal_common import (
+    subscribe,
     require_key,
     upload_image,
     upload_mask,
     url_to_image_tensor,
 )
-
-import fal_client
 
 
 MAP_TYPES = ("basecolor", "normal", "roughness", "metalness", "height")
@@ -153,7 +152,7 @@ class FalPatinaMaps:
         if seed:
             args["seed"] = int(seed)
         print(f"[FAL] fal-ai/patina <- maps={wanted}")
-        result = fal_client.subscribe("fal-ai/patina", arguments=args, with_logs=False)
+        result = subscribe("fal-ai/patina", args)
         textures, by_type = _split_images(result)
         _report("fal-ai/patina", by_type, textures)
         return _maps_tuple(by_type, wanted) + (int(result.get("seed") or 0),)
@@ -212,7 +211,7 @@ class _PatinaTextureBase:
         est = _estimate(w, h, len(wanted), self.BASE_FEE, upscale_factor)
         print(f"[FAL] {self.ENDPOINT} <- {w}x{h}, maps={wanted or 'none (texture only)'}, "
               f"upscale={upscale_factor}x  ~${est:.3f}")
-        result = fal_client.subscribe(self.ENDPOINT, arguments=args, with_logs=False)
+        result = subscribe(self.ENDPOINT, args)
         textures, by_type = _split_images(result)
         _report(self.ENDPOINT, by_type, textures)
         texture = url_to_image_tensor(textures[0]["url"]) if textures else _placeholder("basecolor")

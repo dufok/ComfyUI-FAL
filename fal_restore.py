@@ -34,9 +34,9 @@ sense and one pixel too wide in the texture sense. It is not a megapixel or file
 """
 import json
 
-import fal_client
 
 from .fal_common import (
+    subscribe,
     images_from_result,
     require_key,
     run_image,
@@ -168,9 +168,9 @@ class FalFiboRestore:
         # A dedicated runner because run_image would drop structured_instruction. The response
         # carries BOTH `image` and an empty `images: []`; images_from_result falls through the
         # empty list to the singular key, so the parsing is unchanged.
-        result = fal_client.subscribe(endpoint, arguments=args, with_logs=False)
+        result = subscribe(endpoint, args)
         instruction = result.get("structured_instruction") if isinstance(result, dict) else None
-        return (images_from_result(result),
+        return (images_from_result(result, endpoint),
                 json.dumps(instruction, ensure_ascii=False, indent=2) if instruction else "")
 
 

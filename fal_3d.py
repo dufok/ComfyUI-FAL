@@ -44,6 +44,7 @@ import fal_client
 import folder_paths
 
 from .fal_common import (
+    subscribe,
     upload_image,
     upload_image_frames,
     upload_image_rgba,
@@ -461,7 +462,7 @@ class FalTripoSplat:
         if seed:
             args["seed"] = int(seed)
         print(f"[FAL] tripo3d/triposplat <- {args}")
-        result = fal_client.subscribe("tripo3d/triposplat", arguments=args, with_logs=False)
+        result = subscribe("tripo3d/triposplat", args)
         node = deep_find(result, "model_mesh")
         url = node.get("url") if isinstance(node, dict) else (node if isinstance(node, str) else None)
         if not url:
@@ -727,7 +728,7 @@ class FalMeshyV7:
 
         require_key()
         print(f"[FAL] {endpoint} <- {args}")
-        result = fal_client.subscribe(endpoint, arguments=args, with_logs=False)
+        result = subscribe(endpoint, args)
 
         url = deep_find(result, "model_glb")
         url = url.get("url") if isinstance(url, dict) else url
@@ -862,7 +863,7 @@ class FalTripoSegment:
         require_key()
         args = {"mesh_url": _upload_mesh_file(mesh_file)}
         print(f"[FAL] tripo3d/tripo/segment <- {args}")
-        result = fal_client.subscribe("tripo3d/tripo/segment", arguments=args, with_logs=False)
+        result = subscribe("tripo3d/tripo/segment", args)
 
         node = deep_find(result, "model_mesh")
         url = node.get("url") if isinstance(node, dict) else (node if isinstance(node, str) else None)
@@ -935,7 +936,7 @@ class FalMeshyRigging:
             args["enable_animation"] = True
             args["animation_action_id"] = int(animation_action_id)
         print(f"[FAL] fal-ai/meshy/rigging <- {args}")
-        result = fal_client.subscribe("fal-ai/meshy/rigging", arguments=args, with_logs=False)
+        result = subscribe("fal-ai/meshy/rigging", args)
 
         lines = []
 
