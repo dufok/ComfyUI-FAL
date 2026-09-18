@@ -5,12 +5,31 @@
 // with the run and day totals it keeps (fal_cost.py), so the badge only displays. On page
 // load it asks GET /fal/cost for today's total so far; a new run starts it at $0 for the run.
 // Hover shows the last call: endpoint, cost, and how the cost was worked out.
+//
+// Placement: the bottom-left corner is shared. The sidebar sits there (widening while one of
+// its tabs is open), and LiteGraph draws the canvas info (T / I / N / V) just right of it. So
+// the badge goes past both, and follows the sidebar as tabs open and close.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const money = (v) => (v == null ? "—" : `$${v < 1 ? v.toFixed(3) : v.toFixed(2)}`);
 
 let badge = null;
+const PAST_CANVAS_INFO = 140; // px right of the sidebar, clear of LiteGraph's T/I/N/V lines
+
+function leftEdge() {
+  let x = 0;
+  for (const el of document.querySelectorAll(".side-tool-bar-container, .side-bar-panel")) {
+    const r = el.getBoundingClientRect();
+    // only panels docked on the left count; the sidebar can be moved to the right in settings
+    if (r.width > 0 && r.height > 0 && r.left < innerWidth / 2) x = Math.max(x, r.right);
+  }
+  return x;
+}
+
+function place() {
+  if (badge) badge.style.left = `${leftEdge() + PAST_CANVAS_INFO}px`;
+}
 
 function ensureBadge() {
   if (badge) return badge;
@@ -18,8 +37,9 @@ function ensureBadge() {
   badge.id = "fal-cost-badge";
   Object.assign(badge.style, {
     position: "fixed",
-    left: "12px",
+    left: `${PAST_CANVAS_INFO}px`,
     bottom: "12px",
+    transition: "left 0.15s ease-out",
     zIndex: "1000",
     padding: "3px 9px",
     borderRadius: "6px",
@@ -31,6 +51,9 @@ function ensureBadge() {
     pointerEvents: "auto",
   });
   document.body.appendChild(badge);
+  place();
+  setInterval(place, 500); // sidebar tabs open and close without any event to listen to
+  window.addEventListener("resize", place);
   return badge;
 }
 
