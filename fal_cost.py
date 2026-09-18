@@ -155,6 +155,11 @@ def snapshot():
 
 # --------------------------------------------------------------------------- accounting
 
+def _money(v):
+    """Three decimals under a dollar, as the badge shows it: $0.001 must not print as $0.00."""
+    return f"${v:.3f}" if v < 1 else f"${v:.2f}"
+
+
 def _send(payload):
     """Push to every open ComfyUI tab of this workspace. Silent outside ComfyUI."""
     try:
@@ -181,8 +186,8 @@ def _account(endpoint, cost, how, failed=False):
     shown = "cost unknown" if cost is None else f"${cost:.4f}"
     status = " (failed, but billed)" if failed else ""
     last = f"{endpoint}: {shown}{status} — {how}"
-    today = "?" if day["total"] is None else f"${day['total']:.2f}"
-    print(f"[FAL] {last} | run ${run_total:.3f} · today {today}")
+    today = "?" if day["total"] is None else _money(day["total"])
+    print(f"[FAL] {last} | run {_money(run_total)} · today {today}")
     _send({"run": run_total, "today": day["total"], "date": day["date"], "last": last,
            "endpoint": endpoint, "cost": cost, "prompt_id": prompt_id, "node": node_id})
 
