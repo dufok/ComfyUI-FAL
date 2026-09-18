@@ -222,6 +222,133 @@ def check_content_filter(result, endpoint=""):
     print(f"[FAL] warning: safety checker flagged {hit} of {total} images — those come back blank.")
 
 
+# --------------------------------------------------------------------------- upload limits
+
+MB = 1_000_000  # decimal — the safe reading whenever a doc just says "MB"
+
+# Input-image limits that these endpoints state in their own FAL input schema (the field
+# descriptions, read 2026-09-17 with `fal_registry.py schema <endpoint>`). Only endpoints
+# that document a limit are listed. Fitting an image "just in case" would shrink what an
+# upscaler or an inpaint receives and quietly damage the result, so nothing else is touched.
+#
+#   recraft/vectorize    "less than 5 MB in size, have resolution less than 16 MP and max
+#                        dimension less than 4096 pixels, min dimension more than 256".
+#                        Its real cap is 5 MiB (5242880 B, from its own error message);
+#                        decimal undershoots that on purpose.
+#   hunyuan-3d v3.1      front view "128-5000px, max 8MB"; rapid adds "recommended ≤6MB for
+#                        base64 encoding". The side views state nothing, but they reach the
+#                        same model the same way, so they are fitted the same.
+#   hunyuan3d-v3 sketch  "between 128x128 and 5000x5000 pixels".
+#   hi3d                 "PNG, JPEG and WebP formats are supported, up to 20MB", every view.
+UPLOAD_FIT = {
+    "fal-ai/recraft/vectorize":
+        {"max_bytes": 5 * MB, "max_pixels": 15_999_999, "max_side": 4095, "min_side": 257},
+    "fal-ai/hunyuan-3d/v3.1/pro/image-to-3d": {"max_bytes": 8 * MB, "max_side": 5000, "min_side": 128},
+    "fal-ai/hunyuan-3d/v3.1/rapid/image-to-3d": {"max_bytes": 6 * MB, "max_side": 5000, "min_side": 128},
+    "fal-ai/hunyuan3d-v3/sketch-to-3d": {"max_side": 5000, "min_side": 128},
+    "hitem3d/hi3d/image-to-3d": {"max_bytes": 20 * MB},
+    "hitem3d/hi3d/v3.0/image-to-3d": {"max_bytes": 20 * MB},
+    "hitem3d/hi3d/v3.0/multi-view-to-3d": {"max_bytes": 20 * MB},
+}
+
+# Pillow >= 9.1 keeps the filters under Image.Resampling; older ones on Image itself.
+_LANCZOS = getattr(getattr(Image, "Resampling", None), "LANCZOS", None) or getattr(Image, "LANCZOS", None)
+
+# upload URL -> "fitted WxH -> wxh" note, drained into the node's info by fit_notes()
+_FIT_NOTES = {}
+
+
+def _png_bytes(pil):
+    """Same PNG settings upload_image has always used. optimize=True was measured on a real
+    2764x1536 render on proserver: 0.8% smaller for twice the time (7.3 s vs 4.0 s), so a
+    frame that already fits costs exactly what it did before fitting existed."""
+    buf = io.BytesIO()
+    pil.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def fit_png(pil, spec, endpoint=""):
+    """PIL image -> (PNG bytes, note) inside one endpoint's documented limits.
+
+    Resolution first (longest side, then pixel count), then bytes. PNG size tracks area,
+    so each byte pass shrinks the area by the ratio it is over, with a 5% margin. Every
+    pass resizes from the original, so repeated passes never stack blur. It stays lossless
+    PNG throughout: the endpoints here trace edges or read geometry, and JPEG ringing would
+    hurt them more than a smaller frame does. The note is empty when nothing had to change.
+    """
+    w0, h0 = pil.size
+    lo = spec.get("min_side")
+    if lo and min(w0, h0) < lo:
+        raise RuntimeError(
+            f"{endpoint}: the image is {w0}x{h0}, this endpoint needs more than {lo - 1} px on the "
+            f"short side — upscale it before this node")
+
+    scale = 1.0
+    if spec.get("max_side"):
+        scale = min(scale, spec["max_side"] / max(w0, h0))
+    if spec.get("max_pixels"):
+        scale = min(scale, (spec["max_pixels"] / (w0 * h0)) ** 0.5)
+
+    def at(s):
+        return pil if s >= 1.0 else pil.resize((max(1, int(w0 * s)), max(1, int(h0 * s))), _LANCZOS)
+
+    img = at(scale)
+    data = _png_bytes(img)
+    cap = spec.get("max_bytes")
+    for _ in range(8):
+        if not cap or len(data) <= cap:
+            break
+        scale *= (cap / len(data)) ** 0.5 * 0.95
+        if lo and min(w0, h0) * scale < lo:
+            raise RuntimeError(
+                f"{endpoint}: cannot get this image under {cap / MB:.0f} MB without going below "
+                f"{lo} px on the short side")
+        img = at(scale)
+        data = _png_bytes(img)
+    else:
+        raise RuntimeError(f"{endpoint}: could not fit the image under {cap / MB:.0f} MB")
+
+    note = ""
+    if img.size != (w0, h0):
+        note = (f"fitted {w0}x{h0} -> {img.size[0]}x{img.size[1]} ({len(data) / MB:.1f} MB) "
+                f"for {endpoint}'s upload limit")
+    return data, note
+
+
+def fit_notes(arguments):
+    """The fitting notes for every upload in these arguments — for a node's info output.
+
+    Printing alone is not enough: the next time the output looks soft, the reason should be
+    on the node, not in a container log.
+    """
+    notes = []
+    for v in arguments.values():
+        for u in (v if isinstance(v, (list, tuple)) else (v,)):
+            if isinstance(u, str) and u in _FIT_NOTES:
+                notes.append(_FIT_NOTES.pop(u))
+    return notes
+
+
+def _upload_fitted(frame, spec, endpoint):
+    """One IMAGE frame -> fitted PNG -> uploaded FAL URL."""
+    arr = (np.clip(frame.detach().cpu().numpy(), 0.0, 1.0) * 255.0).astype(np.uint8)
+    data, note = fit_png(Image.fromarray(arr), spec, endpoint)
+    fd, path = tempfile.mkstemp(suffix=".png", prefix="fal_fit_")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        url = fal_client.upload_file(path)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    if note:
+        print(f"[FAL] {note}")
+        _FIT_NOTES[url] = note
+    return url
+
+
 # --------------------------------------------------------------------------- upload
 
 def tensor_frame_to_png_path(tensor_frame):
@@ -234,10 +361,17 @@ def tensor_frame_to_png_path(tensor_frame):
     return path
 
 
-def upload_image(image):
-    """IMAGE tensor (uses first frame) -> uploaded FAL URL."""
+def upload_image(image, fit_for=None):
+    """IMAGE tensor (uses first frame) -> uploaded FAL URL.
+
+    fit_for=<endpoint> first fits the frame into the upload limits that endpoint documents
+    (UPLOAD_FIT). An endpoint with no documented limit is sent exactly as before.
+    """
     if image is None:
         raise RuntimeError("no 'image' connected — connect a LoadImage (or any IMAGE) output")
+    spec = UPLOAD_FIT.get(fit_for) if fit_for else None
+    if spec:
+        return _upload_fitted(image[0], spec, fit_for)
     path = tensor_frame_to_png_path(image[0])
     try:
         return fal_client.upload_file(path)
@@ -568,6 +702,8 @@ def run_mesh(endpoint, arguments, prefix, want_preview=True):
         if thumb:
             preview = url_to_image_tensor(thumb)
     info = f"{endpoint} -> {fname} ({size_mb:.2f} MB)  ⬇ {download_url}"
+    for note in fit_notes(arguments):
+        info += f"\n{note}"
     print(f"[FAL] DONE {endpoint} -> {fname} ({size_mb:.2f} MB)")
     print(f"[FAL] DOWNLOAD: {download_url}")
     return (fname, download_url, preview, info)

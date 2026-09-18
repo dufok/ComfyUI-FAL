@@ -239,8 +239,9 @@ class FalHunyuan3DV31:
 
     def generate(self, image, version, enable_pbr, geometry_only, face_count=0,
                  back_image=None, left_image=None, right_image=None):
+        endpoint = self.ENDPOINTS[version]
         args = {
-            "input_image_url": upload_image(image),
+            "input_image_url": upload_image(image, fit_for=endpoint),
             "enable_pbr": bool(enable_pbr),
         }
         if version == "pro":
@@ -251,10 +252,10 @@ class FalHunyuan3DV31:
                              ("left_image_url", left_image),
                              ("right_image_url", right_image)):
                 if img is not None:
-                    args[key] = upload_image(img)
+                    args[key] = upload_image(img, fit_for=endpoint)
         else:
             args["enable_geometry"] = bool(geometry_only)
-        return run_mesh(self.ENDPOINTS[version], args, f"hunyuan31_{version}")
+        return run_mesh(endpoint, args, f"hunyuan31_{version}")
 
 
 class FalHunyuanSketchTo3D:
@@ -287,7 +288,7 @@ class FalHunyuanSketchTo3D:
         if not prompt.strip():
             raise RuntimeError("prompt is required — say what the sketch depicts")
         args = {
-            "input_image_url": upload_image(image),
+            "input_image_url": upload_image(image, fit_for="fal-ai/hunyuan3d-v3/sketch-to-3d"),
             "prompt": prompt.strip(),
             "enable_pbr": bool(enable_pbr),
         }
@@ -595,12 +596,12 @@ class FalHi3D:
 
         if views:
             endpoint = "hitem3d/hi3d/v3.0/multi-view-to-3d"
-            args["front_image_url"] = upload_image(image)
+            args["front_image_url"] = upload_image(image, fit_for=endpoint)
             for key, img in views.items():
-                args[key] = upload_image(img)
+                args[key] = upload_image(img, fit_for=endpoint)
         else:
             endpoint = "hitem3d/hi3d/v3.0/image-to-3d" if v3 else "hitem3d/hi3d/image-to-3d"
-            args["image_url"] = upload_image(image)
+            args["image_url"] = upload_image(image, fit_for=endpoint)
         return run_mesh(endpoint, args, "hi3d")
 
 

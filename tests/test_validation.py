@@ -10,10 +10,12 @@ The first line of output says which. In the container nothing is stubbed, so the
 fal_client exception classes are the ones being caught.
 """
 import importlib.util
+import io
 import json
 import os
 import sys
 import tempfile
+import time
 
 PACK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -166,6 +168,54 @@ check("a timeout warns about the bill", "billable" in (err(lambda: fc.subscribe(
 
 fal_client.subscribe = lambda *a, **k: {"ok": True}
 check("success passes straight through", fc.subscribe("m", {"prompt": "p"}) == {"ok": True})
+
+print("\n[7] upload fitting — only where an endpoint documents a limit")
+spec = importlib.util.spec_from_file_location("fal_registry", os.path.join(PACK, "fal_registry.py"))
+reg = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(reg)
+known, _ = reg._endpoints_in_pack()
+stray = [e for e in fc.UPLOAD_FIT if e not in known]
+check("every UPLOAD_FIT key is an endpoint the pack calls", not stray, str(stray))
+
+fc._FIT_NOTES["https://x/1.png"] = "fitted A"
+got = fc.fit_notes({"image_url": "https://x/1.png", "refs": ["https://x/2.png"], "prompt": "p"})
+check("fit notes reach the node, once", got == ["fitted A"] and "https://x/1.png" not in fc._FIT_NOTES)
+
+import PIL
+import numpy as _np
+if not (isinstance(getattr(PIL, "__version__", None), str) and isinstance(getattr(_np, "__version__", None), str)):
+    print("  skip  the resizing itself needs real Pillow + numpy — run this file in the container")
+else:
+    from PIL import Image as PImage
+
+    def size_of(data):
+        return PImage.open(io.BytesIO(data)).size
+
+    rec = fc.UPLOAD_FIT["fal-ai/recraft/vectorize"]
+    plain = PImage.new("RGB", (1024, 768), (200, 30, 30))
+    data, note = fc.fit_png(plain, rec, "rec")
+    check("inside the limits: untouched", note == "" and size_of(data) == (1024, 768))
+
+    data, note = fc.fit_png(PImage.new("RGB", (6000, 1500), (10, 10, 10)), rec, "rec")
+    check("longest side capped under 4096", max(size_of(data)) <= 4095 and "fitted 6000x1500" in note)
+
+    data, note = fc.fit_png(PImage.new("RGB", (4500, 4500), (90, 90, 90)), rec, "rec")
+    w, h = size_of(data)
+    check("pixel count capped under 16 MP", w * h < 16_000_000 and max(w, h) <= 4095)
+
+    rng = _np.random.default_rng(0)
+    noise = PImage.fromarray(rng.integers(0, 256, (2400, 2400, 3), dtype=_np.uint8))
+    t = time.time()
+    data, note = fc.fit_png(noise, rec, "rec")
+    w, h = size_of(data)
+    check(f"a frame PNG cannot compress gets under 5 MB ({len(data) / 1e6:.1f} MB at {w}x{h}, "
+          f"{time.time() - t:.1f}s)", len(data) <= rec["max_bytes"] and w < 2400)
+
+    e = err(lambda: fc.fit_png(PImage.new("RGB", (200, 300)), rec, "rec"))
+    check("under the minimum side it refuses, never upscales", e is not None and "more than 256" in e)
+
+    hi3d = fc.UPLOAD_FIT["hitem3d/hi3d/v3.0/image-to-3d"]
+    check("a byte-only limit leaves a light frame alone", fc.fit_png(plain, hi3d, "hi3d")[1] == "")
 
 print(f"\n{PASSED} passed, {FAILED} failed")
 sys.exit(1 if FAILED else 0)

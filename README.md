@@ -367,6 +367,15 @@ different reaction:
 Nothing is retried automatically. A job that failed after FAL accepted it has already been
 charged, so a silent retry would quietly double the bill.
 
+**Upload limits.** Seven endpoints document a limit on the image they take, and only
+those get their upload fitted to it: `recraft/vectorize` (under 5 MB, 16 MP, 4096 px),
+Hunyuan 3D v3.1 pro / rapid (8 MB / 6 MB, 5000 px), Hunyuan sketch-to-3D (5000 px) and
+the three Hi3D endpoints (20 MB). The frame is scaled down (Lanczos, lossless PNG) just
+enough to fit, and the node's `info` output says so (`fitted 2764x1536 -> 2318x1288`).
+A frame that already fits is sent exactly as before. Nothing else is ever fitted: shrinking
+what an upscaler or an inpaint receives would quietly damage the result. The limits live
+in `UPLOAD_FIT` in `fal_common.py`, copied from each endpoint's schema text.
+
 **The safety checker** never raises on FAL's side — it returns blank frames with
 `has_nsfw_concepts`. The pack reads that flag: every frame flagged is an error, some
 flagged is a console warning. A blank frame never travels downstream as a finished render.
@@ -375,8 +384,9 @@ flagged is a console warning. A blank frame never travels downstream as a finish
 
 ```
 __init__.py        merges each module's NODE_CLASS_MAPPINGS, installs the retag hook
-fal_common.py      shared helpers (upload, result parsing, file save, mesh runner) and
-                   subscribe() — the one door to FAL: validation + failure translation
+fal_common.py      shared helpers (upload, result parsing, file save, mesh runner),
+                   subscribe() — the one door to FAL: validation + failure translation —
+                   and UPLOAD_FIT: images fitted to the limits an endpoint documents
 fal_3d.py          FAL/3D nodes — generation, retopo, segmentation, rigging
 fal_background.py  FAL/Background nodes (Bria)
 fal_image_edit.py  FAL/Image/{Remove,Inpaint,Edit,Upscale,Expand,Vector,Finish}

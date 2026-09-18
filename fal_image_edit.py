@@ -23,6 +23,7 @@ Masks follow ComfyUI convention: MASK 1.0 = area to remove/inpaint (uploaded as 
 """
 from .fal_common import (
     subscribe,
+    fit_notes,
     run_image,
     upload_image,
     upload_image_frames,
@@ -931,6 +932,8 @@ def _run_svg(endpoint, args, prefix):
     fname, download_url, size_mb = save_file(url, prefix)
     info = f"{endpoint} -> {fname} ({size_mb:.2f} MB)  ⬇ {download_url}"
     print(f"[FAL] DONE {info}")
+    for note in fit_notes(args):
+        info += f"\n{note}"
     return (fname, download_url, info)
 
 
@@ -950,7 +953,8 @@ class FalRecraftVectorize:
 
     def run(self, image):
         return _run_svg("fal-ai/recraft/vectorize",
-                        {"image_url": upload_image(image)}, "recraft_vec")
+                        {"image_url": upload_image(image, fit_for="fal-ai/recraft/vectorize")},
+                        "recraft_vec")
 
 
 class FalImage2SVG:
