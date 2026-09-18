@@ -26,8 +26,8 @@ for _mod in (fal_3d, fal_background, fal_banana, fal_generate, fal_image_edit,
     NODE_CLASS_MAPPINGS.update(_mod.NODE_CLASS_MAPPINGS)
     NODE_DISPLAY_NAME_MAPPINGS.update(_mod.NODE_DISPLAY_NAME_MAPPINGS)
 
-# Browser-side extension for the folder nodes (upload buttons, folder drag-and-drop,
-# Download-ZIP button). ComfyUI serves this directory at /extensions/ComfyUI-FAL/.
+# Browser side: the folder nodes (upload buttons, folder drag-and-drop, Download-ZIP button)
+# and the FAL cost badge. ComfyUI serves this directory at /extensions/ComfyUI-FAL/.
 WEB_DIRECTORY = "./web"
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
@@ -40,3 +40,12 @@ try:
 except BaseException:  # noqa: BLE001
     import logging
     logging.getLogger(__name__).debug("[ComfyUI-FAL] retag unavailable", exc_info=True)
+
+# The cost badge's page-load state (GET /fal/cost). Guarded the same way: accounting is a
+# convenience, and it must never take the nodes down.
+try:
+    from . import fal_cost
+    fal_cost.install_routes()
+except BaseException:  # noqa: BLE001
+    import logging
+    logging.getLogger(__name__).debug("[ComfyUI-FAL] cost route unavailable", exc_info=True)

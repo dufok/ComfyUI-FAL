@@ -4,3 +4,4 @@ __pycache__/
 *.glb
 fal_catalog.json
 fal_schemas/
+.fal_spend.json

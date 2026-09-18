@@ -61,6 +61,8 @@ def _load_fal_common():
                     f.write(generic)
         sys.path.insert(0, stubs)
     print(f"stubbed: {', '.join(missing) if missing else 'nothing — real dependencies'}")
+    if PACK not in sys.path:
+        sys.path.insert(0, PACK)          # fal_common falls back to a plain `import fal_cost`
     spec = importlib.util.spec_from_file_location("fal_common", os.path.join(PACK, "fal_common.py"))
     mod = importlib.util.module_from_spec(spec)
     sys.modules["fal_common"] = mod
@@ -70,6 +72,16 @@ def _load_fal_common():
 
 fc = _load_fal_common()
 import fal_client
+import fal_cost
+
+_TMP = tempfile.mkdtemp(prefix="fal_cost_")
+fal_cost.STATE = os.path.join(_TMP, "spend.json")      # never the pack's real .fal_spend.json
+PRICES = {"m": (0.08, "images", "USD")}
+fal_cost._fetch_price = lambda endpoint: PRICES.get(endpoint)
+SENT = []
+fal_cost._send = SENT.append
+PROMPT = ["p1"]
+fal_cost._context = lambda: (PROMPT[0], "7")
 
 PASSED = FAILED = 0
 
@@ -157,16 +169,47 @@ check("a non-dict result is tolerated", fc.check_content_filter("nope", "ep") is
 
 print("\n[6] subscribe(): the one door")
 os.environ.setdefault("FAL_KEY", "test-key")
+
+
+class _Resp:
+    def __init__(self, units):
+        self.headers = {} if units is None else {"x-fal-billable-units": str(units)}
+
+
+class _HTTP:
+    def __init__(self, units):
+        self.units = units
+
+    def get(self, url, timeout=None):
+        return _Resp(self.units)
+
+
+class FakeHandle:
+    """Stands in for fal_client's SyncRequestHandle: get() plus the client that re-reads headers."""
+    response_url = "https://queue.fal.run/x/requests/1"
+
+    def __init__(self, result=None, exc=None, units=1):
+        self._result, self._exc, self.client = result, exc, _HTTP(units)
+
+    def get(self):
+        if self._exc is not None:
+            raise self._exc
+        return self._result
+
+
+def submits(**kw):
+    fal_client.submit = lambda endpoint, arguments=None, **k: FakeHandle(**kw)
+
+
 check("validates before calling out", "not sent" in (err(lambda: fc.subscribe("m", {"image_urls": []})) or ""))
 
-fal_client.subscribe = lambda *a, **k: (_ for _ in ()).throw(
-    http_error("nsfw", 400, None, "NSFW"))
+submits(exc=http_error("nsfw", 400, None, "NSFW"), units=0)
 check("http failure is translated", "content filter" in (err(lambda: fc.subscribe("m", {"prompt": "p"})) or ""))
 
-fal_client.subscribe = lambda *a, **k: (_ for _ in ()).throw(fal_client.FalClientTimeoutError("too long"))
+fal_client.submit = lambda *a, **k: (_ for _ in ()).throw(fal_client.FalClientTimeoutError("too long"))
 check("a timeout warns about the bill", "billable" in (err(lambda: fc.subscribe("m", {"prompt": "p"})) or ""))
 
-fal_client.subscribe = lambda *a, **k: {"ok": True}
+submits(result={"ok": True}, units=1)
 check("success passes straight through", fc.subscribe("m", {"prompt": "p"}) == {"ok": True})
 
 print("\n[7] upload fitting — only where an endpoint documents a limit")
@@ -216,6 +259,82 @@ else:
 
     hi3d = fc.UPLOAD_FIT["hitem3d/hi3d/v3.0/image-to-3d"]
     check("a byte-only limit leaves a light frame alone", fc.fit_png(plain, hi3d, "hi3d")[1] == "")
+
+print("\n[8] the cost counter")
+SENT.clear()
+fal_cost._run.update(prompt_id=None, total=0.0, calls=0)
+if os.path.exists(fal_cost.STATE):
+    os.unlink(fal_cost.STATE)
+last = lambda: SENT[-1] if SENT else {}
+
+PROMPT[0] = "run-A"
+submits(result={"images": []}, units=2)
+fc.subscribe("m", {"prompt": "p"})
+check("units x unit price", abs(last().get("cost", 0) - 0.16) < 1e-9 and "2 images x $0.08" in last().get("last", ""))
+fc.subscribe("m", {"prompt": "p"})
+check("the run adds up inside one prompt", abs(last()["run"] - 0.32) < 1e-9)
+
+PROMPT[0] = "run-B"
+submits(result={"images": []}, units=1)
+fc.subscribe("m", {"prompt": "p"})
+check("a new prompt starts the run at zero, the day keeps going",
+      abs(last()["run"] - 0.08) < 1e-9 and abs(last()["today"] - 0.40) < 1e-9)
+
+fal_cost._run.update(prompt_id=None, total=0.0, calls=0)       # as if the container restarted
+check("today survives a restart", abs(fal_cost.snapshot()["today"] - 0.40) < 1e-9)
+
+before = last()["run"]
+submits(result={"images": []}, units=None)
+PROMPT[0] = "run-B"
+fc.subscribe("m", {"prompt": "p"})
+check("no header: 'cost unknown', nothing invented", last()["cost"] is None and "cost unknown" in last()["last"])
+
+submits(result={"output": "text", "usage": {"cost": 0.0123}}, units=5)
+fc.subscribe("m", {"prompt": "p"})
+check("a model that reports its own cost is taken at its word", abs(last()["cost"] - 0.0123) < 1e-9)
+
+n = len(SENT)
+submits(exc=http_error("boom", 500), units=0)
+err(lambda: fc.subscribe("m", {"prompt": "p"}))
+check("a failure FAL did not bill is not counted", len(SENT) == n)
+
+submits(exc=http_error("boom", 500), units=3)
+e = err(lambda: fc.subscribe("m", {"prompt": "p"}))
+check("a failure FAL did bill is counted, and still raises",
+      e is not None and abs(last()["cost"] - 0.24) < 1e-9 and "failed, but billed" in last()["last"])
+
+real_add = fal_cost._add_to_day
+fal_cost._add_to_day = lambda amount: (_ for _ in ()).throw(OSError("read-only file system"))
+submits(result={"ok": 1}, units=1)
+n = len(SENT)
+check("an unwritable day file never breaks the call", fc.subscribe("m", {"prompt": "p"}) == {"ok": 1})
+check("...and the run still reaches the badge", len(SENT) == n + 1 and SENT[-1]["today"] is None)
+fal_cost._add_to_day = real_add
+
+real_units = fal_cost.billable_units
+fal_cost.billable_units = lambda handle: (_ for _ in ()).throw(RuntimeError("unexpected"))
+check("any accounting bug never breaks the call", fc.subscribe("m", {"prompt": "p"}) == {"ok": 1})
+fal_cost.billable_units = real_units
+
+with open(fal_cost.STATE, "w") as f:
+    json.dump({"date": "2000-01-01", "total": 99.0, "calls": 9}, f)
+check("yesterday's total is not today's", fal_cost.snapshot()["today"] == 0.0)
+
+try:
+    from zoneinfo import ZoneInfo
+    ZoneInfo("Pacific/Kiritimati"), ZoneInfo("Pacific/Pago_Pago")
+    have_tz = True
+except Exception:
+    have_tz = False
+if have_tz:
+    os.environ["FAL_COST_TZ"] = "Pacific/Kiritimati"     # UTC+14
+    east = fal_cost._today()
+    os.environ["FAL_COST_TZ"] = "Pacific/Pago_Pago"      # UTC-11: 25 h apart, never the same date
+    west = fal_cost._today()
+    del os.environ["FAL_COST_TZ"]
+    check("FAL_COST_TZ moves the day boundary", east != west)
+else:
+    print("  skip  FAL_COST_TZ — this Python has no IANA time-zone data")
 
 print(f"\n{PASSED} passed, {FAILED} failed")
 sys.exit(1 if FAILED else 0)

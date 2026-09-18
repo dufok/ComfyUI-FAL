@@ -21,6 +21,11 @@ from PIL import Image
 import fal_client
 import folder_paths
 
+try:
+    from . import fal_cost
+except ImportError:          # loaded as a plain module (tests), not as the package
+    import fal_cost
+
 
 # --------------------------------------------------------------------------- auth
 
@@ -186,21 +191,29 @@ def _describe_http_error(endpoint, e):
 
 
 def subscribe(endpoint, arguments):
-    """The one door to FAL: validate, call, translate the failure.
+    """The one door to FAL: validate, call, account for the cost, translate the failure.
 
     Every node in the pack goes through here, so a refusal reads the same wherever it
-    happens and never arrives as a bare stack trace.
+    happens and never arrives as a bare stack trace, and every call reaches the cost badge.
+    submit() + get() is what fal_client.subscribe does inside; doing it here keeps the
+    request handle, which is how fal_cost reads what FAL billed.
     """
     require_key()
     validate_arguments(endpoint, arguments)
+    handle = None
     try:
-        return fal_client.subscribe(endpoint, arguments=arguments, with_logs=False)
+        handle = fal_client.submit(endpoint, arguments=arguments)
+        result = handle.get()
     except _HTTP_ERROR as e:
+        if handle is not None:
+            fal_cost.record_failure(endpoint, handle)
         raise RuntimeError(_describe_http_error(endpoint, e)) from e
     except _TIMEOUT_ERROR as e:
         raise RuntimeError(
             f"{endpoint}: timed out waiting for the result. The job may still be running on FAL "
             f"and is billable either way — check the dashboard before resubmitting.\n  {e}") from e
+    fal_cost.record(endpoint, handle, result)
+    return result
 
 
 def check_content_filter(result, endpoint=""):
