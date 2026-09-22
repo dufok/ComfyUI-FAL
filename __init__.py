@@ -1,10 +1,12 @@
 """ComfyUI-FAL — custom nodes wrapping FAL endpoints, browsable under the FAL/ category,
-plus the folder-IO bar under image/folder (a folder of photos in, one ZIP out — no FAL key needed).
+plus the folder-IO bar under image/folder (a folder of photos in, one ZIP out — no FAL key needed)
+and a D5 Render mask node under mask/D5 (brush strokes + Material ID -> object mask, no key either).
 
 Each node module exposes its own NODE_CLASS_MAPPINGS / NODE_DISPLAY_NAME_MAPPINGS;
 this file merges them. New modules just need to be imported and merged here.
 """
 from . import (
+    d5_nodes,
     fal_3d,
     fal_background,
     fal_banana,
@@ -22,7 +24,7 @@ NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 for _mod in (fal_3d, fal_background, fal_banana, fal_generate, fal_image_edit,
-             fal_material, fal_restore, fal_text, fal_topaz, fal_video, folderio_nodes):
+             fal_material, fal_restore, fal_text, fal_topaz, fal_video, folderio_nodes, d5_nodes):
     NODE_CLASS_MAPPINGS.update(_mod.NODE_CLASS_MAPPINGS)
     NODE_DISPLAY_NAME_MAPPINGS.update(_mod.NODE_DISPLAY_NAME_MAPPINGS)
 
