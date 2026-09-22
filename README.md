@@ -352,6 +352,7 @@ git clone https://github.com/dufok/ComfyUI-FAL.git
 ```
 
 Only dependency is `fal-client` (already present in most FAL-enabled ComfyUI setups).
+Runs on Linux, macOS and Windows.
 For iPhone HEIC/HEIF input in the folder loader, add `pillow-heif` — everything else works without it:
 
 ```bash

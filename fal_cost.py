@@ -17,7 +17,6 @@ container's own local time.
 Nothing in here may fail a job. Every step that can go wrong degrades to "cost unknown".
 """
 import datetime
-import fcntl
 import json
 import os
 import threading
@@ -30,6 +29,16 @@ STATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".fal_spend.jso
 _prices = {}                     # endpoint -> (unit_price, unit, currency), or None if unpriced
 _run = {"prompt_id": None, "total": 0.0, "calls": 0}
 _lock = threading.Lock()
+
+try:                  # POSIX: both workspaces write one day file, so it is flock-ed across processes
+    import fcntl
+except ImportError:   # Windows has no fcntl; one ComfyUI process per machine, _lock is enough there
+    fcntl = None
+
+
+def _flock(f, exclusive):
+    if fcntl is not None:
+        fcntl.flock(f, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
 
 
 # --------------------------------------------------------------------------- pricing
@@ -130,7 +139,7 @@ def _read_day(f):
 def _add_to_day(amount):
     """Add to today's total under an exclusive lock — both workspaces write this one file."""
     with open(STATE, "a+") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
+        _flock(f, True)
         state = _read_day(f)
         state["total"] = round(state["total"] + amount, 6)
         state["calls"] += 1
@@ -146,7 +155,7 @@ def snapshot():
     day = {"date": _today(), "total": 0.0, "calls": 0}
     try:
         with open(STATE, "a+") as f:
-            fcntl.flock(f, fcntl.LOCK_SH)
+            _flock(f, False)
             day = _read_day(f)
     except OSError:
         pass
