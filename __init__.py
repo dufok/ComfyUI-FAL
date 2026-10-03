@@ -43,11 +43,13 @@ except BaseException:  # noqa: BLE001
     import logging
     logging.getLogger(__name__).debug("[ComfyUI-FAL] retag unavailable", exc_info=True)
 
-# The cost badge's page-load state (GET /fal/cost). Guarded the same way: accounting is a
-# convenience, and it must never take the nodes down.
+# The cost badge's page-load state (GET /fal/cost), and counting the other FAL pack's calls on
+# the same badge. Guarded the same way: accounting is a convenience, and it must never take the
+# nodes down.
 try:
     from . import fal_cost
     fal_cost.install_routes()
+    fal_cost.install_watch()
 except BaseException:  # noqa: BLE001
     import logging
     logging.getLogger(__name__).debug("[ComfyUI-FAL] cost route unavailable", exc_info=True)

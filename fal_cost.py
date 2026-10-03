@@ -19,6 +19,7 @@ Nothing in here may fail a job. Every step that can go wrong degrades to "cost u
 import datetime
 import json
 import os
+import sys
 import threading
 import urllib.parse
 import urllib.request
@@ -178,8 +179,8 @@ def _send(payload):
         pass
 
 
-def _account(endpoint, cost, how, failed=False):
-    prompt_id, node_id = _context()
+def _account(endpoint, cost, how, failed=False, ctx=None):
+    prompt_id, node_id = ctx or _context()
     with _lock:
         if prompt_id != _run["prompt_id"]:
             _run.update(prompt_id=prompt_id, total=0.0, calls=0)
@@ -221,6 +222,72 @@ def record_failure(endpoint, handle):
         _account(endpoint, cost, f"{units:g} units billed on a failed request", failed=True)
     except Exception as e:  # noqa: BLE001
         print(f"[FAL] cost: could not account the failed {endpoint} ({e})")
+
+
+# --------------------------------------------------------------------------- the other pack
+
+# gokayfem's ComfyUI-fal-API (v2) prices a call as "list price x 1 run". That is an estimate:
+# a per-second video model is billed for the seconds it rendered. Every call it makes passes
+# one function with the endpoint and the request id, which is all FAL needs to tell us what it
+# billed, so that function is wrapped and its calls land on the same badge as ours. No fork,
+# and if upstream renames the function the wrap is simply not installed.
+OTHER_PACK_API = ".nodes.utils.api"
+_seen = set()                    # request ids already counted (Fal Collect can fetch one twice)
+
+
+def _record_other(api_mod, endpoint, request_id, ctx):
+    """Off the calling thread: one extra GET must not hold up the other pack's node."""
+    try:
+        handle = api_mod.FalConfig().get_client().get_handle(endpoint, request_id)
+        cost, how = call_cost(endpoint, handle, None)
+        _account(endpoint, cost, how, ctx=ctx)
+    except Exception as e:  # noqa: BLE001
+        print(f"[FAL] cost: could not account {endpoint} ({e})")
+
+
+def watch_other_pack():
+    """Count ComfyUI-fal-API's calls as well. True if the wrap is in place. Never raises."""
+    api_mod = next((m for name, m in list(sys.modules.items())
+                    if name.endswith(OTHER_PACK_API)
+                    and hasattr(m, "_record_ledger_entry") and hasattr(m, "FalConfig")), None)
+    if api_mod is None:
+        return False
+    original = api_mod._record_ledger_entry
+    if getattr(original, "_fal_cost_watched", False):
+        return True
+
+    def _record_ledger_entry(endpoint, request_id, *args, **kwargs):
+        try:
+            # free=True is a result re-fetched by request id: nothing new was billed
+            free = kwargs.get("free", args[2] if len(args) > 2 else False)
+            with _lock:
+                fresh = bool(request_id) and not free and request_id not in _seen
+                if fresh:
+                    _seen.add(request_id)
+            if fresh:
+                threading.Thread(target=_record_other, daemon=True,
+                                 args=(api_mod, endpoint, request_id, _context())).start()
+        except BaseException:  # noqa: BLE001 — their call must go through whatever happens here
+            pass
+        return original(endpoint, request_id, *args, **kwargs)
+
+    _record_ledger_entry._fal_cost_watched = True
+    api_mod._record_ledger_entry = _record_ledger_entry
+    return True
+
+
+def install_watch():
+    """Wrap the other pack once every pack has loaded (same deferral as fal_retag)."""
+    from server import PromptServer
+
+    async def _watch(_app):
+        try:
+            if watch_other_pack():
+                print("[FAL] cost: ComfyUI-fal-API calls are counted on the badge too")
+        except BaseException:  # noqa: BLE001 — raising here stops the server booting
+            pass
+
+    PromptServer.instance.app.on_startup.append(_watch)
 
 
 def install_routes():

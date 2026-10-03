@@ -336,5 +336,65 @@ if have_tz:
 else:
     print("  skip  FAL_COST_TZ — this Python has no IANA time-zone data")
 
+print("\n[9] the other FAL pack on the same badge")
+import threading
+import types
+
+fal_cost._run.update(prompt_id=None, total=0.0, calls=0)
+if os.path.exists(fal_cost.STATE):
+    os.unlink(fal_cost.STATE)
+fal_cost._seen.clear()
+PRICES["vendor/model/sub"] = (0.05, "seconds", "USD")
+LEDGER, ASKED = [], []
+
+
+class _OtherClient:
+    def get_handle(self, endpoint, request_id):
+        ASKED.append((endpoint, request_id))
+        return FakeHandle(result={}, units=UNITS[0])
+
+
+def _join():
+    for t in threading.enumerate():
+        if t is not threading.current_thread() and t.daemon:
+            t.join(5)
+
+
+check("no other pack installed: nothing to wrap", fal_cost.watch_other_pack() is False)
+
+other = types.ModuleType("custom_nodes.ComfyUI-fal-API.nodes.utils.api")
+other.FalConfig = lambda: types.SimpleNamespace(get_client=_OtherClient)
+other._record_ledger_entry = lambda endpoint, request_id, duration_s, est_cost_override=None, free=False: \
+    LEDGER.append(request_id)
+sys.modules[other.__name__] = other
+check("the other pack is found and wrapped", fal_cost.watch_other_pack() is True)
+wrapped = other._record_ledger_entry
+check("wrapping twice is a no-op", fal_cost.watch_other_pack() and other._record_ledger_entry is wrapped)
+
+UNITS = [8]
+PROMPT[0] = "run-V"
+n = len(SENT)
+other._record_ledger_entry("vendor/model/sub", "req-1", 12.0)
+_join()
+check("its call is billed by units, not by list price",
+      len(SENT) == n + 1 and abs(last()["cost"] - 0.40) < 1e-9 and "8 seconds x $0.05" in last()["last"])
+check("...asked FAL about that very request", ASKED[-1] == ("vendor/model/sub", "req-1"))
+check("...and its own ledger still gets the entry", LEDGER == ["req-1"])
+
+other._record_ledger_entry("vendor/model/sub", "req-1", 0.1)
+_join()
+check("the same request collected twice is counted once", len(SENT) == n + 1 and LEDGER == ["req-1", "req-1"])
+
+other._record_ledger_entry("vendor/model/sub", "req-2", 0.1, None, True)
+other._record_ledger_entry("vendor/model/sub", None, 0.1)
+_join()
+check("a free re-fetch and a call that never queued are not counted", len(SENT) == n + 1)
+
+other.FalConfig = lambda: (_ for _ in ()).throw(RuntimeError("no key"))
+other._record_ledger_entry("vendor/model/sub", "req-3", 1.0)
+_join()
+check("an accounting failure never reaches the other pack", LEDGER[-1] == "req-3" and len(SENT) == n + 1)
+del sys.modules[other.__name__]
+
 print(f"\n{PASSED} passed, {FAILED} failed")
 sys.exit(1 if FAILED else 0)

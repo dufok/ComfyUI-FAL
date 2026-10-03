@@ -473,24 +473,38 @@ then import it in `__init__.py`.
 
 ### Coexisting with gokayfem's pack
 
-If [gokayfem/ComfyUI-fal-API](https://github.com/gokayfem/ComfyUI-fal-API) is installed too
-(it often is, and in a container image it may not be editable), its 87 nodes sit directly in
-`FAL/Image` and `FAL/VideoGeneration`, interleaved with this pack's, and three of its helpers
-escape into ComfyUI's stock `video` menu. `fal_retag.py` moves that whole pack under one root
-at startup:
+[gokayfem/ComfyUI-fal-API](https://github.com/gokayfem/ComfyUI-fal-API) is the natural
+companion: since its v2 it auto-generates a node for every live FAL model (~1,500, under
+`FAL/Models/<category>` and a hand-picked `FAL/Featured`). This pack does not try to match
+that breadth. It is the shelf of nodes that know more than the raw schema does (parameter
+gating, upload fitting, tier routing), and it tidies up around the catalog.
+
+The catalog files itself sensibly and is left alone. What gets in the way are that pack's ~90
+older hand-written nodes, which sit directly in `FAL/Image` and `FAL/VideoGeneration`,
+interleaved with this pack's. `fal_retag.py` moves them, and the endpoints FAL has delisted,
+to the bottom of the tree at startup:
 
 | from | to |
 |---|---|
-| `FAL/Image` | `FAL/zz-gokayfem/Image` |
-| `FAL/VideoGeneration`, `.../DY` | `FAL/zz-gokayfem/Video` |
-| its 4 video upscalers | `FAL/zz-gokayfem/Video Upscale` |
-| its 4 Nano Banana nodes | `FAL/zz-gokayfem/Banana` |
-| `FAL/LLM`, `FAL/VLM` | `FAL/zz-gokayfem/Text` |
-| `FAL/Training` | `FAL/zz-gokayfem/Training` |
-| stock `video` (upload helpers) | `FAL/zz-gokayfem/Utils` |
+| `FAL/Image` | `FAL/zz-curated/Image` |
+| `FAL/VideoGeneration`, `.../DY` | `FAL/zz-curated/Video` |
+| `FAL/VideoUpscaling` and the upscalers filed under image | `FAL/zz-curated/Video Upscale` |
+| its 4 Nano Banana nodes | `FAL/zz-curated/Banana` |
+| `FAL/LLM`, `FAL/VLM` | `FAL/zz-curated/Text` |
+| `FAL/Training` | `FAL/zz-curated/Training` |
+| its upload helpers in `FAL/Video` (stock `video` in v1) | `FAL/Utils/Video` |
+| `FAL/Compatibility/<category>` (delisted by FAL) | `FAL/zz-removed/<category>` |
 
-The `zz-` prefix sorts it to the bottom. It is deliberately *not* called "legacy" — that pack
-owns video, LoRA training and most text-to-image here, and none of it is deprecated.
+The `zz-` prefix sorts both to the bottom. `zz-curated` is deliberately *not* called "legacy":
+upstream still adds hand-written nodes, they are just the narrower way in.
+
+**One cost badge for both packs.** That pack prices a call as list price x one run, which is
+an estimate: a per-second video model bills the seconds it rendered. Every call it makes
+passes one function with the endpoint and the request id, so `fal_cost.watch_other_pack()`
+wraps it and reads `x-fal-billable-units` for those requests too. Its calls land on this
+pack's badge with what FAL actually charged. If upstream renames that function the wrap is
+simply not installed. Not covered: its multi-variation fan-out, which that pack does not
+ledger either.
 
 This mutates `cls.CATEGORY` from an `app.on_startup` hook. ComfyUI resolves a saved graph by
 its `class_type` (the `NODE_CLASS_MAPPINGS` key) and re-reads `CATEGORY` off the class on

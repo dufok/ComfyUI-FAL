@@ -1,20 +1,26 @@
 """Retag another pack's node categories once every pack has loaded.
 
-The container also ships gokayfem's ComfyUI-fal-API, baked into the docker image (root-owned,
-not a bind mount), so we cannot edit its files — they would come back on the next rebuild. Its
-87 nodes are useful (they own video, LoRA training and most text-to-image) but they sit directly
-in `FAL/Image` and `FAL/VideoGeneration`, interleaved with ours, and three helpers escape into
-ComfyUI's stock `video` menu. That makes the FAL tree hard to read.
+gokayfem's ComfyUI-fal-API is installed next to this pack. Since its v2 it is two things at once:
+an auto-generated catalog of every live FAL model (~1,500 nodes under `FAL/Models/<category>`,
+a hand-picked `FAL/Featured`, plus `FAL/Platform` and `FAL/Utils`), and the ~90 hand-written
+"curated" nodes it has always had. The catalog files itself sensibly and is left where it is.
+The curated nodes are the problem: they sit directly in `FAL/Image` and `FAL/VideoGeneration`,
+interleaved with ours, so the FAL tree is hard to read.
 
-So we move the whole pack under a single `FAL/zz-gokayfem/` root: it sorts to the bottom, it
-groups, and — unlike a name such as "legacy" — it does not claim the nodes are deprecated. They
-are not: that pack is an active complement, and it is the only source of video in this install.
+So two groups move to the bottom of the tree, each under its own root:
+  * `FAL/zz-curated/`  the hand-written nodes. Not "legacy": upstream still adds to them, they
+                       are just the older, narrower way to reach models the catalog now covers.
+  * `FAL/zz-removed/`  upstream's `FAL/Compatibility`: endpoints FAL no longer lists, kept only
+                       so saved graphs still load. Nothing to pick from when building a new one.
+With the v1 pack (curated nodes only, no catalog) the first rule is all that applies.
+
+We cannot edit that pack's files instead: in the docker image it is root-owned, and wherever it
+is a git clone an edit would block the next pull.
 
 Why this is safe: ComfyUI resolves a saved graph by the NODE_CLASS_MAPPINGS key (`class_type`),
 and re-reads `cls.CATEGORY` off the class on every /object_info request. Category is presentation;
 class_type is the contract. So retagging moves menu entries without touching a single saved
-workflow — including the graphs the Comfyder Blender add-ons POST to /prompt with pack-B
-class names hardcoded.
+workflow.
 
 Ordering: custom_nodes are walked with an unsorted os.listdir, so gokayfem's classes may not
 exist yet when this module is imported. We defer to aiohttp's on_startup, which fires after
@@ -37,19 +43,30 @@ import sys
 log = logging.getLogger(__name__)
 
 OWNER_MODULE = "custom_nodes.ComfyUI-fal-API"
-ROOT = "FAL/zz-gokayfem"
+ROOT = "FAL/zz-curated"
+REMOVED = "FAL/zz-removed"
+ROOTS = (ROOT, REMOVED)
 
 # Source category -> where it goes. Keyed on the category the class declares in gokayfem's own
-# source, which is what we see at hook time. Rule-based rather than a list of 87 node ids, so a
+# source, which is what we see at hook time. Rule-based rather than a list of node ids, so a
 # node added upstream lands somewhere sensible instead of being silently left behind.
 CATEGORY_MAP = {
     "FAL/Image": f"{ROOT}/Image",
     "FAL/VideoGeneration": f"{ROOT}/Video",
     "FAL/VideoGeneration/DY": f"{ROOT}/Video",
+    "FAL/VideoUpscaling": f"{ROOT}/Video Upscale",
     "FAL/Training": f"{ROOT}/Training",
     "FAL/LLM": f"{ROOT}/Text",
     "FAL/VLM": f"{ROOT}/Text",
-    "video": f"{ROOT}/Utils",   # upload/download helpers that escaped into ComfyUI's own menu
+    # Upload/download helpers. v1 let them escape into ComfyUI's own `video` menu; v2 files them
+    # in `FAL/Video`, which is where our video nodes live. Its own utilities shelf fits better.
+    "video": "FAL/Utils/Video",
+    "FAL/Video": "FAL/Utils/Video",
+}
+
+# Whole subtrees, sub-category kept: FAL/Compatibility/image-to-video -> FAL/zz-removed/image-to-video
+PREFIX_MAP = {
+    "FAL/Compatibility": REMOVED,
 }
 
 # Per-node exceptions, applied before the category map.
@@ -61,8 +78,8 @@ NODE_OVERRIDES = {
     "VideoUpscaler_fal": f"{ROOT}/Video Upscale",
     # The Nano Banana family. Ours supersede these on every axis (tier routing, seed,
     # system_prompt, thinking_level, safety_tolerance, web search, and the model's own
-    # description as a second output), so they belong at the bottom rather than sitting
-    # in FAL/Image/Banana next to ours, where they would read as equal alternatives.
+    # description as a second output), so they get their own shelf rather than hiding
+    # among the other image nodes.
     "NanoBanana2_fal": f"{ROOT}/Banana",
     "NanoBananaPro_fal": f"{ROOT}/Banana",
     "NanoBananaEdit_fal": f"{ROOT}/Banana",
@@ -72,11 +89,16 @@ NODE_OVERRIDES = {
 
 def _target(name, current):
     """Where this node should end up, or None to leave it alone."""
-    if isinstance(current, str) and current.startswith(ROOT):
-        return None                      # already ours to begin with — idempotent
+    if not isinstance(current, str) or current.startswith(ROOTS):
+        return None                      # already moved — idempotent
     if name in NODE_OVERRIDES:
         return NODE_OVERRIDES[name]
-    return CATEGORY_MAP.get(current)
+    if current in CATEGORY_MAP:
+        return CATEGORY_MAP[current]
+    for prefix, dest in PREFIX_MAP.items():
+        if current == prefix or current.startswith(prefix + "/"):
+            return dest + current[len(prefix):]
+    return None
 
 
 def apply_retag(mappings):
@@ -126,15 +148,14 @@ def install():
                 for _, _, new in changed:
                     buckets[new] = buckets.get(new, 0) + 1
                 if changed:
-                    log.info("[ComfyUI-FAL] retagged %d node(s) of %s into %s/",
-                             len(changed), OWNER_MODULE, ROOT)
+                    log.info("[ComfyUI-FAL] retagged %d node(s) of %s", len(changed), OWNER_MODULE)
                     for cat in sorted(buckets):
                         log.info("[ComfyUI-FAL]   %-32s %d", cat, buckets[cat])
                 elif not any(getattr(c, "RELATIVE_PYTHON_MODULE", None) == OWNER_MODULE
                              for c in mappings.values()):
                     # Not an error on its own — the pack may simply not be installed. But when
                     # it IS expected, this is the only early warning that it failed to import:
-                    # ComfyUI logs that as a WARNING and carries on, so ~87 nodes vanish
+                    # ComfyUI logs that as a WARNING and carries on, so its nodes vanish
                     # silently and anything driving them by class_type breaks at request time.
                     log.warning("[ComfyUI-FAL] %s registered NO nodes — if it is installed, it "
                                 "failed to import; check the startup log above for its traceback",
