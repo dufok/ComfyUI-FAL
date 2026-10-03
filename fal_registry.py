@@ -73,14 +73,14 @@ def fetch_all():
 
 
 def save(models):
-    with open(CACHE, "w") as f:
+    with open(CACHE, "w", encoding="utf-8") as f:
         json.dump({"models": models}, f, ensure_ascii=False, indent=0)
 
 
 def load():
     if not os.path.isfile(CACHE):
         sys.exit(f"no cache at {CACHE} — run `fetch` first.")
-    with open(CACHE) as f:
+    with open(CACHE, encoding="utf-8") as f:
         return json.load(f).get("models", [])
 
 
@@ -223,7 +223,7 @@ def _endpoints_in_pack():
     for fn in sorted(os.listdir(here)):
         if not fn.startswith("fal_") or not fn.endswith(".py") or fn == "fal_registry.py":
             continue
-        tree = ast.parse(open(os.path.join(here, fn)).read())
+        tree = ast.parse(open(os.path.join(here, fn), encoding="utf-8").read())
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and node.args:
                 name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
@@ -277,7 +277,7 @@ def cmd_limits(args):
         bounded = sum(1 for f in fields.values() if "max_items" in f or "min_items" in f)
         print(f"  {eid:55} {len(inp.get('required', [])):2} required, "
               f"{len(fields):2} constrained ({bounded} list-bounded)")
-    with open(SCHEMA_CACHE, "w") as f:
+    with open(SCHEMA_CACHE, "w", encoding="utf-8") as f:
         json.dump({"endpoints": out}, f, ensure_ascii=False, indent=0)
     print(f"wrote {len(out)} endpoints -> {SCHEMA_CACHE}")
     if failed:
