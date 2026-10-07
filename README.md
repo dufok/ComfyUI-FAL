@@ -17,6 +17,9 @@ And one **D5 Render mask node** under `mask/D5`: a few brush strokes on the obje
 Material ID channel give an exact object mask — for compositing rendered brand objects back over an
 AI-re-rendered room. No API call, no key.
 
+And one **16-bit saver** under `image/save`: a height map as a grayscale 16-bit PNG, so real
+displacement does not come out in 256 terraces. No API call, no key.
+
 Built on [FAL](https://fal.ai); one `FAL_KEY`, pay-as-you-go, all heavy compute is in the cloud.
 
 ## Why this exists
@@ -252,6 +255,19 @@ Typical wiring: `Image Composite Masked` with the AI result as `destination`, th
 `source`, this mask as `mask`. Change the strokes and re-run: with a fixed seed ComfyUI serves the
 generation from cache and only the mask branch recomputes — seconds.
 
+### `image/save` — 16-bit grayscale PNG (no FAL key needed)
+
+| Node | What it does |
+|---|---|
+| 💾 Save Image 16-bit (grayscale PNG) | Writes each image of the batch as a 65536-level grayscale PNG into `output/`, same `filename_prefix` rules and the same `ui.images` entries as the stock *Save Image*, so `/history` and `/view` serve it like any other output. |
+
+Built for height maps that drive real displacement (the Texturizeme Blender add-on uses it for the
+CHORD and PATINA height): 8 bit is 256 visible terraces once the surface actually moves. Takes both
+`[B,H,W,C]` and the `[B,H,W]` that ComfyUI-Chord returns; colour input is averaged to one channel.
+Pillow writes `I;16` natively — no new dependency — but cannot write 16-bit RGB, hence grayscale only.
+PATINA's height arrives from FAL as an 8-bit PNG, so put an `Image Blur` (radius 2, sigma 1) in front
+to turn the steps into a real ramp before saving.
+
 ### `FAL/Image/Upscale` — Topaz 2026
 
 FAL retired `fal-ai/topaz/upscale/image` and split Topaz into `topaz/upscale/image/{precision,
@@ -455,6 +471,7 @@ fal_topaz.py       FAL/Image/Upscale + Restore — the 2026 Topaz family, one ga
 fal_video.py       FAL/Video — Wan VACE depth→orbit, URL→file, frame picking
 folderio_nodes.py  image/folder — folder upload, list loader, sequence loader, split/merge, save + ZIP
 d5_nodes.py        mask/D5 — D5 Render Material ID (+ Transparent) + brush strokes -> object mask
+image_nodes.py     image/save — 16-bit grayscale PNG saver (height maps)
 web/folderio.js    browser side of the folder nodes (upload buttons, drag-drop, ZIP button)
 web/fal_cost.js    the cost badge
 fal_retag.py       tidies the co-installed gokayfem pack's categories (see below)
