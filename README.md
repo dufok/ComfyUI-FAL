@@ -310,6 +310,7 @@ perspective conflict left to fight.
 | Node | Endpoint | What it does |
 |---|---|---|
 | FAL Video — Wan VACE 14B depth → orbit | `fal-ai/wan-vace-14b/depth` | depth sequence (IMAGE batch or VIDEO) + `first_frame` → a photoreal orbit. ~**$0.08 per second of 720p**, counted at 16 fps. |
+| FAL Video — MiniMax H3 Max 3D → video | `minimax/h3-max/3d-to-video` | a Blender playblast / clay render (VIDEO or IMAGE sequence + fps, **≤ 15 s**, ≤ 32 shots) → realistic footage with the *same* camera, motion and timing. `prompt` only says what the proxies are; up to 6 `ref_image_*` (any sizes) set the look, otherwise FAL generates up to `max_generated_reference_images` itself. **$0.05 / $0.08 / $0.16 per second** at 480P / 768P / 1080P, 5 s minimum, plus reference tokens. Length is checked before upload. |
 | FAL Video — URL → file | — | downloads a video URL into `output/` and returns a real VIDEO |
 | FAL Video — Pick Frames | — | takes chosen frames out of a VIDEO, decoding only those — an exact list (the camera positions, wired) or start/count/stride |
 

@@ -474,12 +474,194 @@ class FalVideoFrames:
         return (images, total, info)
 
 
+H3_3D_ENDPOINT = "minimax/h3-max/3d-to-video"
+H3_3D_MAX_SECONDS = 15.0        # "up to 15 seconds and 32 shots" — from the endpoint's own schema
+H3_3D_MIN_BILLED = 5.0          # FAL bills at least 5 s per call
+H3_3D_RATE = {"480P": 0.05, "768P": 0.08, "1080P": 0.16}   # $ per output second
+H3_3D_REFS = 6
+
+
+def video_seconds(video):
+    """Duration of a VIDEO without decoding it, or 0.0 when nothing knows."""
+    fn = getattr(video, "get_duration", None)
+    if callable(fn):
+        try:
+            s = float(fn() or 0)
+            if s > 0:
+                return s
+        except Exception:  # noqa: BLE001 — fall through to the container / frames / fps
+            pass
+    src = video.get_stream_source()
+    if isinstance(src, str):
+        p = probe(src)
+        if p and p[4]:
+            return float(p[4])
+    try:
+        n = int(video.get_frame_count() or 0)
+        fps = float(video.get_frame_rate() or 0)
+        return n / fps if n and fps else 0.0
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def check_h3_duration(seconds):
+    """H3 takes at most 15 s. Refuse before uploading, not after FAL rejects a paid wait."""
+    if seconds and seconds > H3_3D_MAX_SECONDS + 0.05:
+        raise RuntimeError(
+            f"the animation is {seconds:.2f} s — H3 3D-to-video takes at most "
+            f"{H3_3D_MAX_SECONDS:.0f} s. Shorten the frame range in Blender or split it into two calls.")
+    if seconds and seconds < H3_3D_MIN_BILLED:
+        print(f"[FAL] note: {seconds:.2f} s clip — FAL bills a minimum of "
+              f"{H3_3D_MIN_BILLED:.0f} s per call anyway.")
+    return seconds
+
+
+class FalMiniMaxH3ThreeDToVideo:
+    """minimax/h3-max/3d-to-video — a Blender playblast or clay render becomes realistic footage.
+
+    Unlike image-to-video, nothing about the motion is invented: the camera, trajectories,
+    timing and how many objects there are all come from the source clip. The prompt only says
+    what the proxies ARE ("the grey box is a seaplane, the cylinder a lighthouse"), and the
+    reference images say what they look like. Without references FAL plans and generates up to
+    `max_generated_reference_images` of its own (~$0.02–0.04 each).
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        refs = {
+            f"ref_image_{i}": ("IMAGE", {"tooltip": "Appearance reference — environment, subject, interior "
+                                                    "or detail. Separate inputs so sizes may differ. "
+                                                    "Nothing geometric is taken from them."})
+            for i in range(1, H3_3D_REFS + 1)
+        }
+        return {
+            "required": {
+                "resolution": (list(H3_3D_RATE), {"default": "768P",
+                                                  "tooltip": "Output quality: $0.05 / $0.08 / $0.16 per "
+                                                             "second, minimum 5 s billed."}),
+            },
+            "optional": {
+                "video": ("VIDEO", {"tooltip": "The Blender animation (Load Video). Up to 15 s, up to 32 "
+                                               "shots. Use this or frames."}),
+                "frames": ("IMAGE", {"tooltip": "The same as a frame sequence (🎞 Load Frame Sequence) — "
+                                                "encoded to h264 here at `fps`. Use this or video."}),
+                "fps": ("FLOAT", {"default": 24.0, "min": 1.0, "max": 60.0, "step": 1.0,
+                                  "tooltip": "Only for `frames`: the Blender scene's frame rate. Sets the "
+                                             "clip's duration, and the output matches it."}),
+                "prompt": ("STRING", {"multiline": True, "default": "",
+                                      "tooltip": "Optional: what the proxies represent and how they move — "
+                                                 "'the moving block is a running person'. Camera, paths, "
+                                                 "timing and object count stay the video's."}),
+                **refs,
+                "max_generated_reference_images": ("INT", {
+                    "default": 2, "min": 1, "max": 8,
+                    "tooltip": "Only when NO reference is connected: how many appearance references FAL "
+                               "may generate itself (~$0.02–0.04 each). Ignored otherwise."}),
+                "enable_safety_checker": ("BOOLEAN", {"default": True,
+                                                      "tooltip": "FAL's default. Off only requests relaxed "
+                                                                 "screening for authorized callers."}),
+            },
+        }
+
+    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("video", "video_file", "download_url", "info")
+    OUTPUT_TOOLTIPS = (
+        "The realistic clip, same duration as the input. Save Video, or Pick Frames for stills.",
+        "File name inside ComfyUI's output/ directory.",
+        "Direct download link (needs COMFYUI_PUBLIC_URL to be absolute).",
+        "Endpoint, duration, references, price estimate and what came back.",
+    )
+    FUNCTION = "run"
+    CATEGORY = "FAL/Video"
+    DESCRIPTION = ("MiniMax H3 Max 3D-to-video: a Blender playblast / clay render (≤15 s) becomes "
+                   "photoreal footage with the SAME camera, motion and timing. Optional references "
+                   "set the look. $0.05 / $0.08 / $0.16 per second at 480P / 768P / 1080P, min 5 s, "
+                   "plus reference tokens.")
+
+    def run(self, resolution="768P", video=None, frames=None, fps=24.0, prompt="",
+            max_generated_reference_images=2, enable_safety_checker=True, **refs):
+        require_key()
+        if (video is None) == (frames is None):
+            raise RuntimeError("connect exactly one of video (Load Video) or frames (an IMAGE sequence)")
+        if resolution not in H3_3D_RATE:
+            raise RuntimeError(f"resolution must be one of {list(H3_3D_RATE)}, got {resolution!r}")
+
+        # Length is checked before anything is encoded or uploaded.
+        if frames is not None:
+            if frames.shape[0] == 0:
+                raise RuntimeError("the frame sequence is empty")
+            seconds = check_h3_duration(int(frames.shape[0]) / float(fps))
+        else:
+            seconds = check_h3_duration(video_seconds(video))
+
+        tmp = None
+        try:
+            if frames is not None:
+                n, h, w = int(frames.shape[0]), int(frames.shape[1]), int(frames.shape[2])
+                check_even_dims(w, h)
+                fd, tmp = tempfile.mkstemp(suffix=".mp4", prefix="fal_h3_")
+                os.close(fd)
+                components = VideoComponents(images=frames.clamp(0.0, 1.0), audio=None,
+                                             frame_rate=Fraction(round(float(fps) * 1000), 1000))
+                VideoFromComponents(components).save_to(tmp)
+                print(f"[FAL] encoded {n} frames {w}x{h} @ {fps:g} fps -> "
+                      f"{os.path.getsize(tmp) / 1e6:.1f} MB")
+                video_url = fal_client.upload_file(tmp)
+            else:
+                video_url = video_to_upload_url(video)
+        finally:
+            if tmp:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+
+        connected = [refs[k] for k in sorted(refs) if k.startswith("ref_image_") and refs[k] is not None]
+        args = {
+            "video_url": video_url,
+            "resolution": resolution,
+            "enable_safety_checker": bool(enable_safety_checker),
+        }
+        if prompt.strip():
+            args["prompt"] = prompt.strip()
+        if connected:
+            args["reference_image_urls"] = [upload_image(img) for img in connected]
+            ref_note = f"{len(connected)} reference(s)"
+        else:
+            args["max_generated_reference_images"] = int(max_generated_reference_images)
+            ref_note = f"no references -> FAL generates up to {int(max_generated_reference_images)}"
+
+        billed = max(seconds, H3_3D_MIN_BILLED) if seconds else H3_3D_MIN_BILLED
+        estimate = billed * H3_3D_RATE[resolution]
+        shown = dict(args, video_url="<clip>")
+        if connected:
+            shown["reference_image_urls"] = f"<{len(connected)} uploaded>"
+        print(f"[FAL] {H3_3D_ENDPOINT} <- {shown}")
+        print(f"[FAL] ~${estimate:.2f} for {billed:.1f} s @ {resolution} + reference tokens "
+              f"(the badge shows what FAL actually billed)")
+
+        result = subscribe(H3_3D_ENDPOINT, args)
+        url = file_url(result.get("video") if isinstance(result, dict) else None)
+        if not url:
+            raise RuntimeError(f"no video url in the FAL response: {result}")
+
+        fname, download_url, size_mb = save_file(url, "h3_3d")
+        path = os.path.join(folder_paths.get_output_directory(), fname)
+        got = describe(path)
+        info = (f"{H3_3D_ENDPOINT} | {seconds:.2f} s @ {resolution}, {ref_note} | "
+                f"≈ ${estimate:.2f} + refs | got {got or f'{size_mb:.1f} MB'} -> {fname}  ⬇ {download_url}")
+        print(f"[FAL] DONE {info}")
+        return (VideoFromFile(path), fname, download_url, info)
+
+
 NODE_CLASS_MAPPINGS = {
+    "FalMiniMaxH3ThreeDToVideo": FalMiniMaxH3ThreeDToVideo,
     "FalWanVaceDepth": FalWanVaceDepth,
     "FalVideoFromUrl": FalVideoFromUrl,
     "FalVideoFrames": FalVideoFrames,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "FalMiniMaxH3ThreeDToVideo": "FAL Video — MiniMax H3 Max 3D → video (Blender clip → realistic)",
     "FalWanVaceDepth": "FAL Video — Wan VACE 14B depth → orbit ($0.08/s @720p)",
     "FalVideoFromUrl": "FAL Video — URL → file",
     "FalVideoFrames": "FAL Video — Pick Frames",
