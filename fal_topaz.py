@@ -9,7 +9,7 @@ FAL retired the single `fal-ai/topaz/upscale/image` endpoint and split Topaz int
                                                                  Standard MAX, Redefine, Recovery V2/Recovery)
     topaz/upscale/image/creative      Bloom, free-hand detail   (Bloom 2, Bloom, Bloom Realism)
     topaz/upscale/image/transparent   keeps the alpha channel
-    topaz/restore/image               Recover 3 / Dust-Scratch V2 / Faces, no upscale
+    topaz/restore/image               Recover 3 / Dust-Scratch V2, no upscale
 
 All of them bill at $0.01 per output megapixel, so a 2x pass on a 12 MP photo is ~$0.12 and the
 choice of model costs nothing extra — pick on looks, not on price.
@@ -211,10 +211,10 @@ class FalTopazUpscale2026:
 class FalTopazRestore:
     """topaz/restore/image — repair pass with no upscale ($0.01/MP).
 
-    Recover 3 rebuilds a degraded photo, Dust-Scratch V2 removes film dust and scratches, Faces
-    repairs faces only. Output size equals input size, so chain it before an upscale node."""
+    Recover 3 rebuilds a degraded photo, Dust-Scratch V2 removes film dust and scratches.
+    Output size equals input size, so chain it before an upscale node."""
 
-    MODELS = ["Recover 3", "Dust-Scratch V2", "Faces"]
+    MODELS = ["Recover 3", "Dust-Scratch V2"]
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -242,5 +242,5 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FalTopazUpscale2026": "FAL Upscale — Topaz 2026 (Wonder/Bloom/precision, $0.01/MP)",
-    "FalTopazRestore": "FAL Restore — Topaz (Recover 3 / dust / faces, $0.01/MP)",
+    "FalTopazRestore": "FAL Restore — Topaz (Recover 3 / dust, $0.01/MP)",
 }

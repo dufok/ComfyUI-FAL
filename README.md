@@ -289,7 +289,7 @@ CGI, `strength` → Text Refine, `color_preservation` → Bloom 2) and FAL 422s 
 Dropped dials are named in the console rather than silently ignored. `face_enhancement` defaults
 **off**: on a small face its separate pass is what produces the waxy look.
 
-**FAL Restore — Topaz** wraps `topaz/restore/image` (Recover 3 / Dust-Scratch V2 / Faces). It does
+**FAL Restore — Topaz** wraps `topaz/restore/image` (Recover 3 / Dust-Scratch V2). It does
 not change the image size, so chain it *before* an upscaler.
 
 The old node is kept as *Topaz LEGACY endpoint* purely so saved graphs keep running.
